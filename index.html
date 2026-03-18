@@ -1572,6 +1572,11 @@ function toggleBalance() { balanceHidden = !balanceHidden; save(); renderDashboa
 
 /* ══ LOG SHEET ══ */
 function openLogSheet(preJobId) {
+  if (jobs.length === 0) {
+    toast('Add a job first before logging a session.');
+    openAddJobSheet();
+    return;
+  }
   var jid = preJobId || (!showingAllView && activeJobId ? activeJobId : (jobs.length > 0 ? jobs[0].id : null));
   populateJobSelect(jid);
   g('ls-date').value = today();
