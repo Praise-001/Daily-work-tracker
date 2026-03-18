@@ -12,6 +12,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 /* ── TOKENS ── */
 :root {
@@ -282,6 +286,67 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
+/* ── WELCOME SCREEN ── */
+#screen-welcome{background:var(--bg);align-items:center;justify-content:center;padding:32px 24px;padding-top:calc(56px + var(--safe-top));text-align:center;}
+.wc-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:340px;margin-top:20px;}
+.wc-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-xl);padding:26px 16px;cursor:pointer;transition:all 0.2s;}
+.wc-card:active{transform:scale(0.97);}
+.wc-card-icon{font-size:36px;margin-bottom:12px;}
+.wc-card-title{font-family:var(--serif);font-size:19px;font-weight:400;margin-bottom:6px;}
+.wc-card-desc{font-size:12px;color:var(--muted);line-height:1.55;}
+.wc-card.team{border-color:rgba(201,168,76,0.35);background:var(--gold-dim);}
+
+/* ── AUTH SCREEN ── */
+#screen-auth{background:var(--bg);align-items:center;justify-content:flex-start;padding:0 28px;padding-top:calc(48px + var(--safe-top));overflow-y:auto;}
+.auth-form{width:100%;max-width:400px;padding-bottom:40px;}
+.auth-error{color:var(--red);font-size:13px;margin-bottom:10px;min-height:16px;line-height:1.4;}
+.auth-join-note{background:var(--gold-dim);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold);display:none;}
+.auth-step{display:none;}
+.auth-step.active{display:block;}
+
+/* ── ADMIN SCREEN ── */
+#screen-admin{background:var(--bg);display:flex;flex-direction:column;}
+.admin-header{padding:14px 18px 12px;padding-top:calc(14px + var(--safe-top));flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg);}
+.period-pills{display:flex;padding:10px 15px 8px;gap:7px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
+.period-pill{padding:7px 14px;border-radius:99px;font-size:12px;font-weight:500;font-family:var(--font);background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all 0.15s;white-space:nowrap;flex-shrink:0;}
+.period-pill.active{background:var(--gold);color:#0d0d0d;border-color:var(--gold);}
+.admin-summary{background:linear-gradient(140deg,#1c1600,#091510);border:1px solid rgba(201,168,76,0.18);border-radius:var(--radius-xl);padding:18px 20px;margin-bottom:14px;}
+.admin-summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;}
+.admin-stat{text-align:center;padding:6px 4px;}
+.admin-stat:not(:last-child){border-right:1px solid rgba(255,255,255,0.05);}
+.admin-stat-val{font-family:var(--serif);font-size:20px;color:var(--gold-light);}
+.admin-stat-lbl{font-size:10px;color:rgba(255,255,255,0.3);margin-top:3px;}
+.admin-worker-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 15px;margin-bottom:8px;cursor:pointer;transition:background 0.15s;animation:fadeUp 0.3s ease both;}
+.admin-worker-card:active{background:var(--surface2);}
+.awc-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.awc-avatar{width:38px;height:38px;border-radius:99px;background:linear-gradient(135deg,var(--gold),#a07828);color:#0d0d0d;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;}
+.awc-avatar.wa-1{background:linear-gradient(135deg,var(--blue),#2266bb);}
+.awc-avatar.wa-2{background:linear-gradient(135deg,#b464ff,#8833cc);}
+.awc-avatar.wa-3{background:linear-gradient(135deg,var(--green),#1a8050);}
+.awc-name{font-size:15px;font-weight:500;}
+.awc-role{font-size:11px;color:var(--muted);margin-top:1px;}
+.awc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--surface2);border-radius:var(--radius);padding:10px 0;}
+.awc-stat{text-align:center;}
+.awc-stat-val{font-size:14px;font-weight:600;color:var(--text);}
+.awc-stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+.admin-bottom-bar{position:sticky;bottom:0;padding:10px 15px;padding-bottom:calc(10px + var(--safe-bot));background:linear-gradient(to top,var(--bg) 60%,transparent);display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0;}
+.admin-fab{width:100%;background:var(--gold);color:#0d0d0d;border:none;border-radius:var(--radius);padding:15px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);transition:opacity 0.2s;}
+.admin-fab:active{opacity:0.85;}
+.admin-fab.secondary{background:var(--surface2);color:var(--text);}
+
+/* ── INVITE MODAL ── */
+.invite-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:150;backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:24px;}
+.invite-overlay.open{display:flex;}
+.invite-box{background:var(--surface);border:1px solid rgba(201,168,76,0.28);border-radius:var(--radius-xl);padding:28px 24px;width:100%;max-width:340px;text-align:center;}
+.invite-code-display{font-family:var(--serif);font-size:38px;letter-spacing:8px;color:var(--gold-light);margin:14px 0;}
+.invite-link-box{background:var(--surface2);border-radius:var(--radius);padding:10px 14px;font-size:11px;color:var(--muted);word-break:break-all;margin-bottom:14px;text-align:left;}
+
+/* ── ADMIN MENU SHEET ── */
+.admin-menu-item{display:flex;align-items:center;gap:12px;padding:14px 0;cursor:pointer;border-bottom:1px solid var(--border);}
+.admin-menu-item:last-child{border-bottom:none;}
+.admin-menu-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.admin-menu-text{font-size:15px;font-weight:500;}
+
 /* ── CONVERT BUTTON ── */
 .convert-btn{background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3);border-radius:99px;padding:5px 14px;font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;margin-bottom:8px;transition:background 0.15s;display:inline-block;}
 .convert-btn:active{background:rgba(201,168,76,0.25);}
@@ -304,6 +369,89 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </head>
 <body>
 <canvas id="confetti-canvas"></canvas>
+
+<!-- ══ WELCOME (mode selector) ══ -->
+<div class="screen hidden" id="screen-welcome">
+  <div class="ob-icon"><img src="icon-192.png" alt="Work Journal"></div>
+  <h1 class="ob-title">Welcome to<br><em>Work Journal</em></h1>
+  <p class="ob-subtitle">Track hours and earnings — for yourself, or manage your whole crew.</p>
+  <div class="wc-cards">
+    <div class="wc-card" onclick="choosePersonal()">
+      <div class="wc-card-icon">👤</div>
+      <div class="wc-card-title">Personal</div>
+      <div class="wc-card-desc">Just for me — track my own jobs and earnings</div>
+    </div>
+    <div class="wc-card team" onclick="chooseTeam()">
+      <div class="wc-card-icon">👥</div>
+      <div class="wc-card-title">Team</div>
+      <div class="wc-card-desc">Manage a team — track hours and payroll for my crew</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AUTH (sign in / sign up) ══ -->
+<div class="screen hidden" id="screen-auth">
+  <div class="auth-form">
+    <div class="ob-icon"><img src="icon-192.png" alt="Work Journal"></div>
+    <h1 class="ob-title" id="auth-title" style="margin-bottom:6px">Sign in</h1>
+    <p class="ob-subtitle" id="auth-subtitle" style="margin-bottom:20px">Welcome back</p>
+
+    <!-- Step 1: auth form -->
+    <div class="auth-step active" id="auth-step-1">
+      <div class="auth-join-note" id="auth-join-note"></div>
+      <div class="ob-field" id="auth-name-field" style="display:none">
+        <label>Your name</label>
+        <input type="text" id="auth-name" placeholder="e.g. Jordan" autocomplete="given-name" autocapitalize="words">
+      </div>
+      <div class="ob-field">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="ob-field">
+        <label>Password</label>
+        <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password" minlength="6">
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <button class="ob-btn" id="auth-submit-btn" onclick="authSubmit()">Sign In</button>
+      <button class="btn-cancel" style="width:100%;margin-top:8px" id="auth-mode-toggle" onclick="toggleAuthMode()">New here? Create account</button>
+      <button class="btn-cancel" style="width:100%;margin-top:8px" onclick="backToWelcome()">← Back</button>
+    </div>
+
+    <!-- Step 2: team name (admin only, after signup) -->
+    <div class="auth-step" id="auth-step-2">
+      <p class="ob-subtitle" style="margin-bottom:20px">Almost done! Give your team a name.</p>
+      <div class="ob-field">
+        <label>Team name</label>
+        <input type="text" id="auth-team-name" placeholder="e.g. Night Shift Crew" autocapitalize="words">
+      </div>
+      <div class="auth-error" id="auth-team-error"></div>
+      <button class="ob-btn" onclick="createTeam()">Create team →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN DASHBOARD ══ -->
+<div class="screen hidden" id="screen-admin">
+  <div class="admin-header">
+    <div class="hdr-left">
+      <div class="greeting" id="admin-greeting">Good morning</div>
+      <h1 id="admin-team-name" style="font-family:var(--serif);font-size:19px;font-weight:400">Team</h1>
+    </div>
+    <button class="avatar-btn" id="admin-avatar" onclick="openAdminMenu()">A</button>
+  </div>
+  <div class="period-pills">
+    <button class="period-pill active" id="pill-week" onclick="setAdminPeriod('week')">This week</button>
+    <button class="period-pill" id="pill-month" onclick="setAdminPeriod('month')">This month</button>
+    <button class="period-pill" id="pill-all" onclick="setAdminPeriod('all')">All time</button>
+  </div>
+  <div class="app-content" id="admin-content">
+    <div style="text-align:center;padding:80px 20px;color:var(--muted);font-size:14px">Loading team data…</div>
+  </div>
+  <div class="admin-bottom-bar">
+    <button class="admin-fab secondary" onclick="showInvite()">🔗 Invite worker</button>
+    <button class="admin-fab" onclick="exportCSV()">↓ Export CSV</button>
+  </div>
+</div>
 
 <!-- ══ ONBOARDING ══ -->
 <div class="screen" id="screen-onboard">
@@ -542,6 +690,49 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
+<!-- ══ WORKER DETAIL PANEL (admin view) ══ -->
+<div class="panel" id="panel-worker-detail">
+  <div class="panel-header">
+    <button class="panel-back" onclick="closeWorkerDetail()">‹</button>
+    <div class="panel-title" id="worker-detail-name">Worker</div>
+    <span class="panel-badge" id="worker-detail-badge">0 sessions</span>
+  </div>
+  <div class="panel-body" id="worker-detail-body"></div>
+</div>
+
+<!-- ══ INVITE MODAL ══ -->
+<div class="invite-overlay" id="invite-overlay" onclick="closeInvite()">
+  <div class="invite-box" onclick="event.stopPropagation()">
+    <div style="font-family:var(--serif);font-size:22px;font-weight:400;margin-bottom:6px">Invite workers</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Share this code or link. Workers open it and create an account to join your team.</p>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Team code</div>
+    <div class="invite-code-display" id="invite-code-display">——</div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Or share link</div>
+    <div class="invite-link-box" id="invite-link-box"></div>
+    <button class="btn-save" onclick="copyInviteLink()">Copy link</button>
+    <button class="btn-cancel" style="margin-top:8px;width:100%" onclick="closeInvite()">Done</button>
+  </div>
+</div>
+
+<!-- ══ ADMIN MENU SHEET ══ -->
+<div class="sheet-overlay" id="admin-menu-overlay" onclick="closeAdminMenu()"></div>
+<div class="sheet" id="admin-menu-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Settings</div>
+  <div class="admin-menu-item" onclick="toggleThemeFromAdmin()">
+    <div class="admin-menu-icon" style="background:var(--surface2)">☀️</div>
+    <div class="admin-menu-text">Toggle theme</div>
+  </div>
+  <div class="admin-menu-item" onclick="showInviteFromMenu()">
+    <div class="admin-menu-icon" style="background:var(--gold-dim)">🔗</div>
+    <div class="admin-menu-text">Invite workers</div>
+  </div>
+  <div class="admin-menu-item" onclick="signOutUser()" style="margin-top:4px">
+    <div class="admin-menu-icon" style="background:var(--red-dim)">🚪</div>
+    <div class="admin-menu-text" style="color:var(--red)">Sign out</div>
+  </div>
+</div>
+
 <!-- ══ LOG SESSION SHEET ══ -->
 <div class="sheet-overlay" id="sheet-overlay" onclick="closeLogSheet()"></div>
 <div class="sheet" id="log-sheet">
@@ -597,6 +788,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <script>
 /* ══════════════════════════════════
+   FIREBASE CONFIG
+   ⚙️  Paste your Firebase project config below.
+   Go to: console.firebase.google.com
+   → Project Settings → Your apps → Web → SDK setup & config
+══════════════════════════════════ */
+var FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+var db = null, auth = null;
+try {
+  if (FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY') {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    auth = firebase.auth();
+  }
+} catch(fbErr) { console.warn('Firebase init skipped:', fbErr.message); }
+
+/* ══════════════════════════════════
    STATE
 ══════════════════════════════════ */
 var jobs = [];      // [{id, name, cur, curCode, defRate}]
@@ -614,6 +828,20 @@ var lastLoggedAt = 0;      // timestamp of last session save
 var clearSessionsTimer = null;
 var pinBuffer = '';
 var pinSetupBuffer = '', pinSetupFirst = '';
+
+/* ── TEAM MODE STATE ── */
+var wjMode = localStorage.getItem('wj_mode'); // 'personal' | 'team' | null
+var currentUser = null;        // Firebase auth user
+var currentTeam = null;        // {id, name, adminUid, inviteCode}
+var currentRole = null;        // 'admin' | 'worker'
+var currentUserName = '';      // name from /users/{uid}
+var teamMembers = [];          // [{uid, name, role}] for admin view
+var teamAllEntries = [];       // all entries from Firestore for admin view
+var teamAllJobs = [];          // all jobs from Firestore for admin view
+var adminPeriod = 'week';      // 'week' | 'month' | 'all'
+var authMode = 'signin';       // 'signin' | 'signup'
+var pendingJoinCode = null;    // invite code from URL param
+
 var HM=[
   {id:'h10',val:10,e:'⚡',t:'10 Hours In!',m:"You've clocked 10 hours. The grind has officially begun."},
   {id:'h50',val:50,e:'🔥',t:'50 Hours Strong!',m:"Half a hundred hours logged. Your consistency is paying off."},
@@ -650,6 +878,14 @@ function codeToSym(code){var h=CURRENCY_LIST.find(function(c){return c.code.toLo
 
 /* ══ LOAD + MIGRATE ══ */
 function loadState() {
+  // In team mode, only load preferences — data comes from Firestore
+  if (wjMode === 'team') {
+    try {
+      var prefs = JSON.parse(localStorage.getItem('wj3') || 'null');
+      if (prefs) { isLight = prefs.isLight||false; balanceHidden = prefs.balanceHidden||false; seenM = prefs.seenM||{}; primaryCurCode = prefs.primaryCurCode||''; convertEnabled = prefs.convertEnabled||false; cachedRates = prefs.cachedRates||null; }
+    } catch(e) {}
+    return;
+  }
   // Try current key
   try {
     var sv = JSON.parse(localStorage.getItem('wj3') || 'null');
@@ -692,7 +928,11 @@ function loadState() {
 loadState();
 
 function save() {
-  try { localStorage.setItem('wj3', JSON.stringify({jobs,entries,userName,isLight,balanceHidden,seenM,primaryCurCode,convertEnabled,cachedRates})); } catch(e) {}
+  // In team mode: only persist preferences, not jobs/entries (Firestore is source of truth)
+  var data = wjMode === 'team'
+    ? {jobs:[],entries:[],userName:'',isLight,balanceHidden,seenM,primaryCurCode,convertEnabled,cachedRates}
+    : {jobs,entries,userName,isLight,balanceHidden,seenM,primaryCurCode,convertEnabled,cachedRates};
+  try { localStorage.setItem('wj3', JSON.stringify(data)); } catch(e) {}
 }
 
 /* ══ UTILS ══ */
@@ -858,28 +1098,81 @@ g('ob-name').addEventListener('keydown', function(e){ if(e.key==='Enter') obGo(1
 
 /* ══ SHOW APP ══ */
 function showApp() {
-  g('screen-onboard').classList.add('hidden');
-  g('screen-app').classList.remove('hidden');
+  showScreen('screen-app');
+  var displayName = wjMode === 'team' ? (currentUserName || userName) : userName;
   var h = new Date().getHours();
   g('greeting').textContent = h<12?'Good morning':h<17?'Good afternoon':'Good evening';
-  g('user-name-display').textContent = userName + "'s Journal";
-  g('user-avatar').textContent = userName.charAt(0).toUpperCase();
-  g('drawer-avatar').textContent = userName.charAt(0).toUpperCase();
-  g('drawer-name').textContent = userName;
+  g('user-name-display').textContent = displayName + "'s Journal";
+  g('user-avatar').textContent = (displayName||'?').charAt(0).toUpperCase();
+  g('drawer-avatar').textContent = (displayName||'?').charAt(0).toUpperCase();
+  g('drawer-name').textContent = displayName;
   if (!activeJobId && jobs.length > 0) activeJobId = jobs[0].id;
   renderTabs(); renderDashboard(); updateDrawer();
 }
-if (userName) {
-  var storedPin = localStorage.getItem('wj_pin');
-  var exitAt = parseInt(localStorage.getItem('wj_exit') || '0', 10);
-  var away = Date.now() - exitAt;
-  if (storedPin && exitAt && away > 3 * 60 * 1000) {
-    // Been gone > 3 minutes — show PIN screen
-    g('screen-pin').classList.remove('hidden');
-  } else {
-    showApp();
+function showScreen(id) {
+  var all = ['screen-welcome','screen-auth','screen-admin','screen-onboard','screen-pin','screen-app'];
+  all.forEach(function(s){ var el=g(s); if(el) el.classList.add('hidden'); });
+  var el = g(id); if (el) el.classList.remove('hidden');
+}
+
+function initApp() {
+  // Detect invite code in URL (?join=CODE)
+  try {
+    var urlParams = new URLSearchParams(window.location.search);
+    var joinCode = urlParams.get('join');
+    if (joinCode) {
+      pendingJoinCode = joinCode;
+      localStorage.setItem('wj_mode', 'team');
+      wjMode = 'team';
+      // Clean URL
+      history.replaceState({}, '', window.location.pathname);
+    }
+  } catch(e) {}
+
+  // No mode chosen yet — show welcome
+  if (!wjMode) {
+    showScreen('screen-welcome');
+    return;
+  }
+
+  // Personal mode — existing flow
+  if (wjMode === 'personal') {
+    if (userName) {
+      var storedPin = localStorage.getItem('wj_pin');
+      var exitAt = parseInt(localStorage.getItem('wj_exit') || '0', 10);
+      var away = Date.now() - exitAt;
+      if (storedPin && exitAt && away > 3 * 60 * 1000) {
+        showScreen('screen-pin');
+      } else {
+        showApp();
+      }
+    } else {
+      showScreen('screen-onboard');
+    }
+    return;
+  }
+
+  // Team mode — Firebase auth check
+  if (wjMode === 'team') {
+    if (!auth) {
+      toast('Firebase not configured. Falling back to personal mode.');
+      localStorage.setItem('wj_mode', 'personal');
+      wjMode = 'personal';
+      showScreen('screen-onboard');
+      return;
+    }
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        currentUser = user;
+        handleAuthSuccess(user);
+      } else {
+        renderAuthScreen();
+        showScreen('screen-auth');
+      }
+    });
   }
 }
+initApp();
 
 // Record the time when the user leaves the app
 document.addEventListener('visibilitychange', function() {
@@ -1280,10 +1573,14 @@ function submitLog() {
   if (!rate || rate <= 0) return toast('Enter a valid rate.');
   var prev = allTotals();
   if (editEntryId !== null) {
-    entries = entries.map(function(e){ return String(e.id)===String(editEntryId) ? {id:e.id,jobId:job.id,date,hours,rate,note} : e; });
+    var updatedEntry = {id:editEntryId, jobId:job.id, date, hours, rate, note};
+    entries = entries.map(function(e){ return String(e.id)===String(editEntryId) ? updatedEntry : e; });
+    if (wjMode === 'team') syncEntryToFirestore(updatedEntry);
     editEntryId = null; toast('Session updated ✓');
   } else {
-    entries.push({id: Date.now(), jobId: job.id, date, hours, rate, note});
+    var newEntry = {id: Date.now(), jobId: job.id, date, hours, rate, note};
+    entries.push(newEntry);
+    if (wjMode === 'team') syncEntryToFirestore(newEntry);
     toast('Session saved ✓');
   }
   lastLoggedAt = Date.now();
@@ -1311,6 +1608,7 @@ function cancelEdit() {
 function deleteEntry(id) {
   if (!confirm('Remove this session?')) return;
   entries = entries.filter(function(e){ return String(e.id)!==String(id); });
+  if (wjMode === 'team') deleteEntryFirestore(id);
   if (String(editEntryId)===String(id)) cancelEdit();
   save(); renderDashboard(); updateDrawer(); toast('Session removed');
   // refresh logs panel if open
@@ -1362,6 +1660,7 @@ function editFromLogs(id) {
 function delFromLogs(id) {
   if (!confirm('Remove this session?')) return;
   entries = entries.filter(function(e){ return String(e.id)!==String(id); });
+  if (wjMode === 'team') deleteEntryFirestore(id);
   save(); renderDashboard(); updateDrawer(); renderAllLogs(); toast('Session removed');
 }
 
@@ -1381,7 +1680,9 @@ function addJob() {
   var cur = g('aj-cur').value.trim() || '$';
   var curCode = g('aj-curcode').value.trim().toUpperCase() || symToCode(cur);
   var rate = g('aj-rate').value.trim();
-  jobs.push({id: Date.now(), name, cur, curCode, defRate: rate});
+  var newJob = {id: Date.now(), name, cur, curCode, defRate: rate};
+  jobs.push(newJob);
+  if (wjMode === 'team') syncJobToFirestore(newJob);
   save(); closeAddJobSheet(); renderTabs(); renderDashboard(); updateDrawer();
   toast(name + ' added ✓');
 }
@@ -1415,6 +1716,7 @@ function saveEditJob() {
   var newCur = g('ej-cur').value.trim() || job.cur;
   var newCode = g('ej-curcode').value.trim().toUpperCase() || symToCode(newCur) || job.curCode || '';
   job.name = name; job.cur = newCur; job.curCode = newCode; job.defRate = g('ej-rate').value.trim();
+  if (wjMode === 'team') syncJobToFirestore(job);
   save(); closePanelEditJob(); renderTabs(); renderDashboard(); updateDrawer(); toast('Job updated ✓');
 }
 function deleteJob() {
@@ -1422,6 +1724,7 @@ function deleteJob() {
   if (!confirm('Remove this job and all its sessions?')) return;
   entries = entries.filter(function(e){ return String(e.jobId)!==String(editJobId); });
   jobs = jobs.filter(function(j){ return String(j.id)!==String(editJobId); });
+  if (wjMode === 'team') deleteJobFirestore(editJobId);
   if (String(activeJobId)===String(editJobId)) { activeJobId = jobs[0].id; showingAllView = false; }
   save(); closePanelEditJob(); renderTabs(); renderDashboard(); updateDrawer(); toast('Job removed');
 }
@@ -1535,8 +1838,7 @@ initCurSelects();
   el.addEventListener('touchend', function(e) {
     var dx = e.changedTouches[0].clientX - startX;
     var dy = e.changedTouches[0].clientY - startY;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // too short or mostly vertical
-    // Build ordered tab list: [null (overview), job0.id, job1.id, ...]
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
     var tabs = [null].concat(jobs.map(function(j){ return j.id; }));
     var cur = showingAllView ? null : activeJobId;
     var idx = tabs.findIndex(function(t){ return String(t) === String(cur); });
@@ -1551,6 +1853,469 @@ initCurSelects();
     renderTabs(); renderDashboard();
   }, {passive: true});
 })();
+
+/* ══════════════════════════════════
+   WELCOME / MODE SELECTION
+══════════════════════════════════ */
+function choosePersonal() {
+  localStorage.setItem('wj_mode', 'personal');
+  wjMode = 'personal';
+  if (userName) { showApp(); } else { showScreen('screen-onboard'); }
+}
+function chooseTeam() {
+  localStorage.setItem('wj_mode', 'team');
+  wjMode = 'team';
+  if (!auth) { toast('Firebase not configured yet. Add your config first.'); return; }
+  renderAuthScreen();
+  showScreen('screen-auth');
+}
+function backToWelcome() {
+  localStorage.removeItem('wj_mode');
+  wjMode = null;
+  showScreen('screen-welcome');
+}
+
+/* ══════════════════════════════════
+   AUTH SCREEN
+══════════════════════════════════ */
+function renderAuthScreen() {
+  var isSignup = authMode === 'signup';
+  g('auth-title').textContent = pendingJoinCode ? (isSignup ? 'Join the team' : 'Welcome back') : (isSignup ? 'Create account' : 'Sign in');
+  g('auth-subtitle').textContent = isSignup ? 'Fill in your details to get started' : 'Enter your credentials';
+  g('auth-name-field').style.display = isSignup ? 'block' : 'none';
+  var submitBtn = g('auth-submit-btn');
+  submitBtn.textContent = isSignup ? 'Create account' : 'Sign in';
+  submitBtn.disabled = false;
+  g('auth-mode-toggle').textContent = isSignup ? 'Already have an account? Sign in' : 'New here? Create account';
+  g('auth-error').textContent = '';
+  // Join note
+  var joinNote = g('auth-join-note');
+  if (pendingJoinCode) {
+    joinNote.style.display = 'block';
+    joinNote.textContent = '🔗 You\'ve been invited to join a team. Create an account to continue.';
+    authMode = 'signup';
+    g('auth-name-field').style.display = 'block';
+    g('auth-submit-btn').textContent = 'Create account';
+    g('auth-mode-toggle').style.display = 'none';
+  } else {
+    joinNote.style.display = 'none';
+    g('auth-mode-toggle').style.display = 'block';
+  }
+  // Show step 1
+  g('auth-step-1').className = 'auth-step active';
+  g('auth-step-2').className = 'auth-step';
+}
+
+function toggleAuthMode() {
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  renderAuthScreen();
+}
+
+function authSubmit() {
+  var email = (g('auth-email').value || '').trim();
+  var pass = g('auth-pass').value || '';
+  var name = (g('auth-name').value || '').trim();
+  if (!email) return toast('Enter your email.');
+  if (!pass || pass.length < 6) return toast('Password must be at least 6 characters.');
+  if (authMode === 'signup' && !name) return toast('Enter your name.');
+  var btn = g('auth-submit-btn');
+  btn.textContent = 'Please wait…';
+  btn.disabled = true;
+  g('auth-error').textContent = '';
+  if (authMode === 'signup') {
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(function(cred) {
+        currentUser = cred.user;
+        currentUserName = name;
+        return db.collection('users').doc(cred.user.uid).set({
+          name: name, email: email,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      })
+      .then(function() {
+        if (pendingJoinCode) {
+          return joinTeamByCode(pendingJoinCode, currentUserName);
+        } else {
+          // Admin: show team name step
+          g('auth-step-1').className = 'auth-step';
+          g('auth-step-2').className = 'auth-step active';
+          return null;
+        }
+      })
+      .catch(function(err) {
+        g('auth-error').textContent = err.message;
+        btn.textContent = 'Create account';
+        btn.disabled = false;
+      });
+  } else {
+    auth.signInWithEmailAndPassword(email, pass)
+      .then(function(cred) {
+        currentUser = cred.user;
+        handleAuthSuccess(cred.user);
+      })
+      .catch(function(err) {
+        g('auth-error').textContent = err.message;
+        btn.textContent = 'Sign in';
+        btn.disabled = false;
+      });
+  }
+}
+
+function handleAuthSuccess(user) {
+  db.collection('users').doc(user.uid).get()
+    .then(function(doc) {
+      if (!doc.exists) {
+        authMode = 'signup';
+        renderAuthScreen();
+        showScreen('screen-auth');
+        return;
+      }
+      var userData = doc.data();
+      currentUserName = userData.name || '';
+      var teamId = userData.teamId;
+      if (!teamId) {
+        // Admin who hasn't created team yet
+        g('auth-step-1').className = 'auth-step';
+        g('auth-step-2').className = 'auth-step active';
+        showScreen('screen-auth');
+        return;
+      }
+      return db.collection('teams').doc(teamId).get()
+        .then(function(teamDoc) {
+          if (!teamDoc.exists) { g('auth-step-2').className = 'auth-step active'; showScreen('screen-auth'); return; }
+          currentTeam = Object.assign({id: teamDoc.id}, teamDoc.data());
+          return db.collection('teams').doc(teamId).collection('members').doc(user.uid).get();
+        })
+        .then(function(memberDoc) {
+          if (!memberDoc || !memberDoc.exists) { showScreen('screen-auth'); return; }
+          currentRole = memberDoc.data().role;
+          if (currentRole === 'admin') {
+            loadAdminData();
+          } else {
+            loadWorkerData();
+          }
+        });
+    })
+    .catch(function(err) {
+      toast('Error loading profile.');
+      console.error(err);
+    });
+}
+
+function signOutUser() {
+  closeAdminMenu();
+  auth.signOut().then(function() {
+    currentUser = null; currentTeam = null; currentRole = null;
+    currentUserName = ''; teamMembers = []; teamAllEntries = []; teamAllJobs = [];
+    localStorage.removeItem('wj_mode');
+    wjMode = null;
+    showScreen('screen-welcome');
+  });
+}
+
+/* ══════════════════════════════════
+   TEAM CREATION
+══════════════════════════════════ */
+function createTeam() {
+  var teamName = (g('auth-team-name').value || '').trim();
+  if (!teamName) return toast('Enter a team name.');
+  g('auth-team-error').textContent = '';
+  var btn = document.querySelector('#auth-step-2 .ob-btn');
+  if (btn) { btn.textContent = 'Creating…'; btn.disabled = true; }
+  var inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  var teamRef = db.collection('teams').doc();
+  var uid = currentUser.uid;
+  teamRef.set({
+    name: teamName, adminUid: uid, inviteCode: inviteCode,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  })
+  .then(function() {
+    currentTeam = {id: teamRef.id, name: teamName, adminUid: uid, inviteCode: inviteCode};
+    return Promise.all([
+      teamRef.collection('members').doc(uid).set({
+        name: currentUserName, role: 'admin',
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }),
+      db.collection('users').doc(uid).update({teamId: teamRef.id})
+    ]);
+  })
+  .then(function() {
+    currentRole = 'admin';
+    loadAdminData();
+  })
+  .catch(function(err) {
+    g('auth-team-error').textContent = err.message;
+    if (btn) { btn.textContent = 'Create team →'; btn.disabled = false; }
+  });
+}
+
+function joinTeamByCode(code, memberName) {
+  return db.collection('teams').where('inviteCode', '==', code.toUpperCase()).limit(1).get()
+    .then(function(snap) {
+      if (snap.empty) throw new Error('Invalid invite code. Ask your admin for a new link.');
+      var teamDoc = snap.docs[0];
+      currentTeam = Object.assign({id: teamDoc.id}, teamDoc.data());
+      var uid = currentUser.uid;
+      return Promise.all([
+        teamDoc.ref.collection('members').doc(uid).set({
+          name: memberName, role: 'worker',
+          joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }),
+        db.collection('users').doc(uid).update({teamId: teamDoc.id})
+      ]);
+    })
+    .then(function() {
+      currentRole = 'worker';
+      pendingJoinCode = null;
+      loadWorkerData();
+    })
+    .catch(function(err) {
+      g('auth-error').textContent = err.message;
+      var btn = g('auth-submit-btn');
+      btn.textContent = 'Create account'; btn.disabled = false;
+    });
+}
+
+/* ══════════════════════════════════
+   WORKER DATA LOAD
+══════════════════════════════════ */
+function loadWorkerData() {
+  var uid = currentUser.uid;
+  var tid = currentTeam.id;
+  Promise.all([
+    db.collection('teams').doc(tid).collection('jobs').where('ownerId','==',uid).get(),
+    db.collection('teams').doc(tid).collection('entries').where('workerId','==',uid).get()
+  ])
+  .then(function(results) {
+    jobs = results[0].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    entries = results[1].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    userName = currentUserName;
+    if (!activeJobId && jobs.length > 0) activeJobId = jobs[0].id;
+    showApp();
+  })
+  .catch(function(err) { toast('Error loading your data.'); console.error(err); });
+}
+
+/* ══════════════════════════════════
+   FIRESTORE SYNC (worker writes)
+══════════════════════════════════ */
+function syncJobToFirestore(job) {
+  if (!db || !currentTeam || !currentUser) return;
+  var data = {ownerId:currentUser.uid, name:job.name, cur:job.cur, curCode:job.curCode||'', defRate:job.defRate||''};
+  db.collection('teams').doc(currentTeam.id).collection('jobs').doc(String(job.id)).set(data).catch(function(e){console.warn('job sync err',e);});
+}
+function deleteJobFirestore(jobId) {
+  if (!db || !currentTeam) return;
+  db.collection('teams').doc(currentTeam.id).collection('jobs').doc(String(jobId)).delete().catch(function(e){console.warn('job del err',e);});
+}
+function syncEntryToFirestore(entry) {
+  if (!db || !currentTeam || !currentUser) return;
+  var data = {workerId:currentUser.uid, jobId:String(entry.jobId), date:entry.date, hours:entry.hours, rate:entry.rate, note:entry.note||'', createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  db.collection('teams').doc(currentTeam.id).collection('entries').doc(String(entry.id)).set(data).catch(function(e){console.warn('entry sync err',e);});
+}
+function deleteEntryFirestore(entryId) {
+  if (!db || !currentTeam) return;
+  db.collection('teams').doc(currentTeam.id).collection('entries').doc(String(entryId)).delete().catch(function(e){console.warn('entry del err',e);});
+}
+
+/* ══════════════════════════════════
+   ADMIN DATA LOAD
+══════════════════════════════════ */
+function loadAdminData() {
+  var tid = currentTeam.id;
+  var h = new Date().getHours();
+  g('admin-greeting').textContent = h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+  g('admin-team-name').textContent = currentTeam.name || 'Team';
+  g('admin-avatar').textContent = (currentUserName||'A').charAt(0).toUpperCase();
+  showScreen('screen-admin');
+  g('admin-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:var(--muted);font-size:14px">Loading…</div>';
+  applyTheme(isLight);
+  Promise.all([
+    db.collection('teams').doc(tid).collection('members').get(),
+    db.collection('teams').doc(tid).collection('entries').get(),
+    db.collection('teams').doc(tid).collection('jobs').get()
+  ])
+  .then(function(results) {
+    teamMembers = results[0].docs.map(function(d){ return Object.assign({uid:d.id},d.data()); });
+    teamAllEntries = results[1].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    teamAllJobs = results[2].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    renderAdminDashboard();
+  })
+  .catch(function(err) {
+    g('admin-content').innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--red);font-size:14px">Error loading team data.<br><br><span style="color:var(--muted);font-size:12px">'+err.message+'</span></div>';
+  });
+}
+
+function filterEntriesByPeriod(allEntries, period) {
+  if (period === 'all') return allEntries;
+  var now = new Date();
+  var cutoff;
+  if (period === 'week') {
+    var day = now.getDay(); // 0=Sun
+    cutoff = new Date(now); cutoff.setDate(now.getDate() - day); cutoff.setHours(0,0,0,0);
+  } else { // month
+    cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  var cutStr = cutoff.toISOString().split('T')[0];
+  return allEntries.filter(function(e){ return (e.date||'') >= cutStr; });
+}
+
+function renderAdminDashboard() {
+  var filtered = filterEntriesByPeriod(teamAllEntries, adminPeriod);
+  var totalHours = 0, totalEarned = 0;
+  filtered.forEach(function(e){ totalHours += Number(e.hours)||0; totalEarned += (Number(e.hours)||0)*(Number(e.rate)||0); });
+  var workers = teamMembers.filter(function(m){ return m.role === 'worker'; });
+
+  var html = '';
+  // Summary card
+  html += '<div class="admin-summary">';
+  html += '<div style="font-size:10px;color:rgba(201,168,76,0.6);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px">Team overview</div>';
+  html += '<div class="admin-summary-grid">';
+  html += '<div class="admin-stat"><div class="admin-stat-val">'+fh(totalHours)+'</div><div class="admin-stat-lbl">Hours</div></div>';
+  html += '<div class="admin-stat"><div class="admin-stat-val">'+workers.length+'</div><div class="admin-stat-lbl">Workers</div></div>';
+  html += '<div class="admin-stat"><div class="admin-stat-val">'+filtered.length+'</div><div class="admin-stat-lbl">Sessions</div></div>';
+  html += '</div></div>';
+
+  if (workers.length === 0) {
+    html += '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:14px">No workers yet.<br><br><span style="color:var(--gold);cursor:pointer" onclick="showInvite()">Tap "Invite worker" to add your crew →</span></div>';
+  } else {
+    html += '<div style="font-family:var(--serif);font-size:17px;font-weight:400;margin-bottom:10px">Your Crew</div>';
+    workers.forEach(function(member, i) {
+      var memberEntries = filtered.filter(function(e){ return e.workerId === member.uid; });
+      var mHours = memberEntries.reduce(function(s,e){ return s+(Number(e.hours)||0); },0);
+      var mEarned = memberEntries.reduce(function(s,e){ return s+(Number(e.hours)||0)*(Number(e.rate)||0); },0);
+      var avatarClass = 'awc-avatar' + (i>0?' wa-'+Math.min(i,3):'');
+      html += '<div class="admin-worker-card" style="animation-delay:'+(i*0.05)+'s" onclick="openWorkerDetail(\''+member.uid+'\')">';
+      html += '<div class="awc-top"><div class="'+avatarClass+'">'+(member.name||'?').charAt(0).toUpperCase()+'</div>';
+      html += '<div><div class="awc-name">'+(member.name||'Worker')+'</div><div class="awc-role">'+memberEntries.length+' session'+(memberEntries.length!==1?'s':'')+' this period</div></div></div>';
+      html += '<div class="awc-stats">';
+      html += '<div class="awc-stat"><div class="awc-stat-val">'+fh(mHours)+'</div><div class="awc-stat-lbl">Hours</div></div>';
+      html += '<div class="awc-stat"><div class="awc-stat-val">$'+mEarned.toFixed(0)+'</div><div class="awc-stat-lbl">Owed</div></div>';
+      html += '<div class="awc-stat"><div class="awc-stat-val">'+(mHours>0?(mEarned/mHours).toFixed(0):0)+'/hr</div><div class="awc-stat-lbl">Avg rate</div></div>';
+      html += '</div></div>';
+    });
+  }
+  g('admin-content').innerHTML = html;
+}
+
+function setAdminPeriod(p) {
+  adminPeriod = p;
+  ['week','month','all'].forEach(function(x){ g('pill-'+x).classList.remove('active'); });
+  g('pill-'+p).classList.add('active');
+  renderAdminDashboard();
+}
+
+/* ══════════════════════════════════
+   WORKER DETAIL PANEL (admin)
+══════════════════════════════════ */
+function openWorkerDetail(uid) {
+  var member = teamMembers.find(function(m){ return m.uid === uid; });
+  if (!member) return;
+  g('worker-detail-name').textContent = member.name || 'Worker';
+  var memberEntries = [].concat(teamAllEntries).filter(function(e){ return e.workerId === uid; })
+    .sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  g('worker-detail-badge').textContent = memberEntries.length + ' session' + (memberEntries.length!==1?'s':'');
+  var html = '';
+  if (!memberEntries.length) {
+    html = '<div style="text-align:center;padding:60px 20px;color:var(--muted);font-size:14px">No sessions yet.</div>';
+  } else {
+    var totalHours = memberEntries.reduce(function(s,e){ return s+(Number(e.hours)||0); },0);
+    var totalEarned = memberEntries.reduce(function(s,e){ return s+(Number(e.hours)||0)*(Number(e.rate)||0); },0);
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">';
+    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:14px;text-align:center"><div style="font-family:var(--serif);font-size:22px;color:var(--gold-light)">'+fh(totalHours)+'</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Total hours</div></div>';
+    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:14px;text-align:center"><div style="font-family:var(--serif);font-size:22px;color:var(--gold-light)">$'+totalEarned.toFixed(2)+'</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Total owed</div></div>';
+    html += '</div>';
+    var groups = {}, order = [];
+    memberEntries.forEach(function(e){
+      var mk = (e.date||'0000-00').slice(0,7);
+      if (!groups[mk]) { groups[mk]=[]; order.push(mk); }
+      groups[mk].push(e);
+    });
+    order.forEach(function(mk) {
+      html += '<div class="month-head">'+fmonth(mk+'-01')+'</div>';
+      groups[mk].forEach(function(e) {
+        var earned = (Number(e.hours)||0)*(Number(e.rate)||0);
+        var job = teamAllJobs.find(function(j){ return String(j.id)===String(e.jobId); });
+        html += '<div class="ecard jc-0">';
+        html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned ec-0">$'+earned.toFixed(2)+'</div></div>';
+        if (job) html += '<span class="ejob-tag jt-0">'+job.name+'</span>';
+        html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+        html += '<div class="emeta">'+fh(e.hours)+' &middot; $'+Number(e.rate).toFixed(2)+'/hr</div>';
+        html += '</div>';
+      });
+    });
+  }
+  g('worker-detail-body').innerHTML = html;
+  g('panel-worker-detail').classList.add('open');
+}
+function closeWorkerDetail() { g('panel-worker-detail').classList.remove('open'); }
+
+/* ══════════════════════════════════
+   INVITE MODAL
+══════════════════════════════════ */
+function showInvite() {
+  if (!currentTeam) return;
+  var code = currentTeam.inviteCode || '';
+  var link = window.location.origin + window.location.pathname + '?join=' + code;
+  g('invite-code-display').textContent = code;
+  g('invite-link-box').textContent = link;
+  g('invite-overlay').classList.add('open');
+}
+function showInviteFromMenu() { closeAdminMenu(); setTimeout(showInvite, 350); }
+function closeInvite() { g('invite-overlay').classList.remove('open'); }
+function copyInviteLink() {
+  var code = currentTeam ? currentTeam.inviteCode : '';
+  var link = window.location.origin + window.location.pathname + '?join=' + code;
+  navigator.clipboard ? navigator.clipboard.writeText(link).then(function(){ toast('Link copied'); }).catch(function(){ toast('Copy: '+link); }) : toast('Copy: '+link);
+}
+
+/* ══════════════════════════════════
+   ADMIN MENU SHEET
+══════════════════════════════════ */
+function openAdminMenu() {
+  g('admin-menu-overlay').classList.add('open');
+  g('admin-menu-sheet').classList.add('open');
+}
+function closeAdminMenu() {
+  g('admin-menu-overlay').classList.remove('open');
+  g('admin-menu-sheet').classList.remove('open');
+}
+function toggleThemeFromAdmin() {
+  closeAdminMenu();
+  applyTheme(!isLight);
+  save();
+}
+
+/* ══════════════════════════════════
+   CSV EXPORT
+══════════════════════════════════ */
+function exportCSV() {
+  if (!teamMembers.length && !teamAllEntries.length) return toast('No data to export.');
+  var rows = [['Worker','Job','Date','Hours','Rate','Currency','Earned']];
+  var filtered = filterEntriesByPeriod(teamAllEntries, adminPeriod);
+  filtered.forEach(function(e) {
+    var member = teamMembers.find(function(m){ return m.uid === e.workerId; });
+    var job = teamAllJobs.find(function(j){ return String(j.id)===String(e.jobId); });
+    var earned = (Number(e.hours)||0)*(Number(e.rate)||0);
+    rows.push([
+      member ? member.name : e.workerId,
+      job ? job.name : e.jobId,
+      e.date || '',
+      e.hours || 0,
+      e.rate || 0,
+      job ? (job.curCode||job.cur||'') : '',
+      earned.toFixed(2)
+    ]);
+  });
+  var csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var blob = new Blob([csv], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'work-journal-'+(currentTeam?currentTeam.name:'team')+'-'+today()+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Export downloaded');
+}
 </script>
 </body>
 </html>
