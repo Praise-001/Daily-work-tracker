@@ -303,6 +303,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .auth-join-note{background:var(--gold-dim);border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold);display:none;}
 .auth-step{display:none;}
 .auth-step.active{display:block;}
+.google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);font-size:15px;font-weight:500;font-family:var(--font);color:var(--text);cursor:pointer;margin-bottom:4px;transition:background 0.15s;}
+.google-btn:active{background:var(--surface2);}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:12px;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
 
 /* ── ADMIN SCREEN ── */
 #screen-admin{background:var(--bg);display:flex;flex-direction:column;}
@@ -372,8 +377,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <!-- ══ WELCOME (mode selector) ══ -->
 <div class="screen hidden" id="screen-welcome">
-  <div class="ob-icon"><img src="icon-192.png" alt="Work Journal"></div>
-  <h1 class="ob-title">Welcome to<br><em>Work Journal</em></h1>
+  <div class="ob-icon"><img src="icon-192.png" alt="Ratelog"></div>
+  <h1 class="ob-title">Welcome to<br><em>Ratelog</em></h1>
   <p class="ob-subtitle">Track hours and earnings — for yourself, or manage your whole crew.</p>
   <div class="wc-cards">
     <div class="wc-card" onclick="choosePersonal()">
@@ -389,35 +394,57 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
-<!-- ══ AUTH (sign in / sign up) ══ -->
+<!-- ══ AUTH (Email + Google) ══ -->
 <div class="screen hidden" id="screen-auth">
   <div class="auth-form">
     <div class="ob-icon"><img src="icon-192.png" alt="Work Journal"></div>
-    <h1 class="ob-title" id="auth-title" style="margin-bottom:6px">Sign in</h1>
-    <p class="ob-subtitle" id="auth-subtitle" style="margin-bottom:20px">Welcome back</p>
+    <h1 class="ob-title" id="auth-title" style="margin-bottom:6px">Welcome</h1>
+    <p class="ob-subtitle" id="auth-subtitle" style="margin-bottom:20px">Sign in or create an account</p>
 
-    <!-- Step 1: auth form -->
+    <!-- Step 1: method choice -->
     <div class="auth-step active" id="auth-step-1">
       <div class="auth-join-note" id="auth-join-note"></div>
-      <div class="ob-field" id="auth-name-field" style="display:none">
-        <label>Your name</label>
-        <input type="text" id="auth-name" placeholder="e.g. Jordan" autocomplete="given-name" autocapitalize="words">
-      </div>
+      <button class="google-btn" onclick="googleSignIn()">
+        <svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.5 33.4 30 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 2.9l6.4-6.4C34.5 5.5 29.6 3.5 24 3.5 12.7 3.5 3.5 12.7 3.5 24S12.7 44.5 24 44.5c11 0 20.5-8 20.5-20.5 0-1.4-.1-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15 16.1 19.2 13.5 24 13.5c3 0 5.8 1.1 7.9 2.9l6.4-6.4C34.5 5.5 29.6 3.5 24 3.5c-7.6 0-14.2 4.3-17.7 11.2z"/><path fill="#FBBC05" d="M24 44.5c5.5 0 10.4-1.8 14.2-5l-6.6-5.4C29.7 35.8 27 36.5 24 36.5c-5.9 0-10.9-3.8-12.8-9.1l-7 5.4C7.8 40.2 15.4 44.5 24 44.5z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-.8 2.5-2.3 4.6-4.3 6l6.6 5.4c3.9-3.6 6.4-8.9 6.4-15.5 0-1.4-.1-2.7-.5-4z"/></svg>
+        Continue with Google
+      </button>
+      <div class="auth-divider"><span>or</span></div>
+      <button class="ob-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2)" onclick="showEmailAuth()">✉️ Continue with Email</button>
+      <button class="btn-cancel" style="width:100%;margin-top:8px" onclick="backToWelcome()">← Back</button>
+    </div>
+
+    <!-- Step 1b: email + password form -->
+    <div class="auth-step" id="auth-step-email">
+      <div class="auth-join-note" id="auth-join-note-email"></div>
       <div class="ob-field">
         <label>Email</label>
         <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
       </div>
-      <div class="ob-field">
+      <div class="ob-field" id="auth-pass-field">
         <label>Password</label>
         <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password" minlength="6">
       </div>
       <div class="auth-error" id="auth-error"></div>
       <button class="ob-btn" id="auth-submit-btn" onclick="authSubmit()">Sign In</button>
       <button class="btn-cancel" style="width:100%;margin-top:8px" id="auth-mode-toggle" onclick="toggleAuthMode()">New here? Create account</button>
-      <button class="btn-cancel" style="width:100%;margin-top:8px" onclick="backToWelcome()">← Back</button>
+      <button class="btn-cancel" style="width:100%;margin-top:4px" onclick="backToMethodChoice()">← Back</button>
     </div>
 
-    <!-- Step 2: team name (admin only, after signup) -->
+    <!-- Step 2: username (optional, new users only) -->
+    <div class="auth-step" id="auth-step-name">
+      <p class="ob-subtitle" style="margin-bottom:8px">What should we call you?</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Pick a username or skip to use the suggested one.</p>
+      <div class="ob-field">
+        <label>Username</label>
+        <input type="text" id="auth-name" placeholder="e.g. Jordan" autocomplete="given-name" autocapitalize="words">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Suggested: <span id="auth-name-suggested" style="color:var(--gold)"></span></div>
+      </div>
+      <div class="auth-error" id="auth-name-error"></div>
+      <button class="ob-btn" onclick="saveNewUserName()">Continue →</button>
+      <button class="btn-cancel" style="width:100%;margin-top:8px" onclick="skipUsername()">Skip — use suggested name</button>
+    </div>
+
+    <!-- Step 3: team name (new admin only) -->
     <div class="auth-step" id="auth-step-2">
       <p class="ob-subtitle" style="margin-bottom:20px">Almost done! Give your team a name.</p>
       <div class="ob-field">
@@ -527,7 +554,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="app-header">
     <div class="hdr-left">
       <div class="greeting" id="greeting">Good morning</div>
-      <h1 id="user-name-display">Work Journal</h1>
+      <h1 id="user-name-display">Ratelog</h1>
     </div>
     <button class="avatar-btn" id="user-avatar" onclick="openDrawer()">?</button>
   </div>
@@ -561,7 +588,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="drawer-avatar" id="drawer-avatar">?</div>
       <div>
         <div class="drawer-name" id="drawer-name">Name</div>
-        <div class="drawer-since" id="drawer-since">Work Journal</div>
+        <div class="drawer-since" id="drawer-since">Ratelog</div>
       </div>
     </div>
   </div>
@@ -794,21 +821,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
    → Project Settings → Your apps → Web → SDK setup & config
 ══════════════════════════════════ */
 var FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDbrZHav-DfhTGvW7lBtHzYnwDKvOUOHhI",
+  authDomain: "ratelog-0919.firebaseapp.com",
+  projectId: "ratelog-0919",
+  storageBucket: "ratelog-0919.firebasestorage.app",
+  messagingSenderId: "36743999551",
+  appId: "1:36743999551:web:f981b6c5e46cda480dc88a"
 };
-var db = null, auth = null;
+var db = null, auth = null, googleProvider = null;
 try {
-  if (FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY') {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    auth = firebase.auth();
-  }
-} catch(fbErr) { console.warn('Firebase init skipped:', fbErr.message); }
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  googleProvider = new firebase.auth.GoogleAuthProvider();
+} catch(fbErr) { console.warn('Firebase init error:', fbErr.message); }
 
 /* ══════════════════════════════════
    STATE
@@ -1124,7 +1150,6 @@ function initApp() {
       pendingJoinCode = joinCode;
       localStorage.setItem('wj_mode', 'team');
       wjMode = 'team';
-      // Clean URL
       history.replaceState({}, '', window.location.pathname);
     }
   } catch(e) {}
@@ -1878,74 +1903,66 @@ function backToWelcome() {
 /* ══════════════════════════════════
    AUTH SCREEN
 ══════════════════════════════════ */
-function renderAuthScreen() {
-  var isSignup = authMode === 'signup';
-  g('auth-title').textContent = pendingJoinCode ? (isSignup ? 'Join the team' : 'Welcome back') : (isSignup ? 'Create account' : 'Sign in');
-  g('auth-subtitle').textContent = isSignup ? 'Fill in your details to get started' : 'Enter your credentials';
-  g('auth-name-field').style.display = isSignup ? 'block' : 'none';
-  var submitBtn = g('auth-submit-btn');
-  submitBtn.textContent = isSignup ? 'Create account' : 'Sign in';
-  submitBtn.disabled = false;
-  g('auth-mode-toggle').textContent = isSignup ? 'Already have an account? Sign in' : 'New here? Create account';
-  g('auth-error').textContent = '';
-  // Join note
-  var joinNote = g('auth-join-note');
-  if (pendingJoinCode) {
-    joinNote.style.display = 'block';
-    joinNote.textContent = '🔗 You\'ve been invited to join a team. Create an account to continue.';
-    authMode = 'signup';
-    g('auth-name-field').style.display = 'block';
-    g('auth-submit-btn').textContent = 'Create account';
-    g('auth-mode-toggle').style.display = 'none';
-  } else {
-    joinNote.style.display = 'none';
-    g('auth-mode-toggle').style.display = 'block';
-  }
-  // Show step 1
-  g('auth-step-1').className = 'auth-step active';
-  g('auth-step-2').className = 'auth-step';
+function showStep(stepId) {
+  ['auth-step-1','auth-step-email','auth-step-name','auth-step-2'].forEach(function(id){
+    var el=g(id); if(el) el.className='auth-step';
+  });
+  var el=g(stepId); if(el) el.className='auth-step active';
 }
 
+function renderAuthScreen() {
+  g('auth-title').textContent = pendingJoinCode ? 'Join the team' : 'Welcome';
+  g('auth-subtitle').textContent = pendingJoinCode ? 'Create or sign in to your account' : 'Sign in or create an account';
+  var joinNote = g('auth-join-note');
+  if (pendingJoinCode) { joinNote.style.display='block'; joinNote.textContent='🔗 You\'ve been invited to join a team.'; }
+  else { joinNote.style.display='none'; }
+  showStep('auth-step-1');
+}
+
+function showEmailAuth() {
+  // Reset email form
+  var btn = g('auth-submit-btn'); if(btn){btn.textContent='Sign In';btn.disabled=false;}
+  var err = g('auth-error'); if(err) err.textContent='';
+  var toggle = g('auth-mode-toggle'); if(toggle) toggle.textContent='New here? Create account';
+  authMode = 'signin';
+  var passField = g('auth-pass-field'); if(passField) passField.style.display='block';
+  var joinNoteEmail = g('auth-join-note-email');
+  if (joinNoteEmail) { joinNoteEmail.style.display = pendingJoinCode ? 'block' : 'none'; if(pendingJoinCode) joinNoteEmail.textContent='🔗 You\'ve been invited. Create an account to join.'; }
+  showStep('auth-step-email');
+}
+function backToMethodChoice() { showStep('auth-step-1'); }
+
+/* ── EMAIL + PASSWORD AUTH ── */
 function toggleAuthMode() {
   authMode = authMode === 'signin' ? 'signup' : 'signin';
-  renderAuthScreen();
+  var isSignup = authMode === 'signup';
+  var btn = g('auth-submit-btn'); if(btn){btn.textContent=isSignup?'Create account':'Sign In';btn.disabled=false;}
+  var toggle = g('auth-mode-toggle'); if(toggle) toggle.textContent=isSignup?'Already have an account? Sign in':'New here? Create account';
+  var err = g('auth-error'); if(err) err.textContent='';
 }
 
 function authSubmit() {
   var email = (g('auth-email').value || '').trim();
-  var pass = g('auth-pass').value || '';
-  var name = (g('auth-name').value || '').trim();
+  var pass = (g('auth-pass').value || '');
   if (!email) return toast('Enter your email.');
   if (!pass || pass.length < 6) return toast('Password must be at least 6 characters.');
-  if (authMode === 'signup' && !name) return toast('Enter your name.');
-  var btn = g('auth-submit-btn');
-  btn.textContent = 'Please wait…';
-  btn.disabled = true;
+  var btn = g('auth-submit-btn'); btn.disabled = true;
+  var prevText = btn.textContent; btn.textContent = 'Please wait…';
   g('auth-error').textContent = '';
   if (authMode === 'signup') {
     auth.createUserWithEmailAndPassword(email, pass)
       .then(function(cred) {
         currentUser = cred.user;
-        currentUserName = name;
-        return db.collection('users').doc(cred.user.uid).set({
-          name: name, email: email,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      })
-      .then(function() {
-        if (pendingJoinCode) {
-          return joinTeamByCode(pendingJoinCode, currentUserName);
-        } else {
-          // Admin: show team name step
-          g('auth-step-1').className = 'auth-step';
-          g('auth-step-2').className = 'auth-step active';
-          return null;
-        }
+        // Show username step for new email sign-ups
+        var suggested = email.split('@')[0].replace(/[^a-zA-Z0-9]/g,'') || 'User';
+        g('auth-name-suggested').textContent = suggested;
+        g('auth-name').value = '';
+        g('auth-name-error').textContent = '';
+        showStep('auth-step-name');
       })
       .catch(function(err) {
         g('auth-error').textContent = err.message;
-        btn.textContent = 'Create account';
-        btn.disabled = false;
+        btn.textContent = prevText; btn.disabled = false;
       });
   } else {
     auth.signInWithEmailAndPassword(email, pass)
@@ -1955,19 +1972,74 @@ function authSubmit() {
       })
       .catch(function(err) {
         g('auth-error').textContent = err.message;
-        btn.textContent = 'Sign in';
-        btn.disabled = false;
+        btn.textContent = prevText; btn.disabled = false;
       });
   }
+}
+
+/* ── GOOGLE SIGN-IN ── */
+function googleSignIn() {
+  if (!googleProvider) return toast('Firebase not configured.');
+  auth.signInWithPopup(googleProvider)
+    .then(function(result) {
+      currentUser = result.user;
+      return db.collection('users').doc(result.user.uid).get();
+    })
+    .then(function(doc) {
+      if (!doc.exists) {
+        // New Google user — offer username choice (suggested = Google displayName)
+        var suggested = currentUser.displayName || currentUser.email.split('@')[0];
+        g('auth-name-suggested').textContent = suggested;
+        g('auth-name').value = '';
+        g('auth-name-error').textContent = '';
+        showScreen('screen-auth');
+        showStep('auth-step-name');
+      } else {
+        currentUserName = doc.data().name || currentUser.displayName || '';
+        handleAuthSuccess(currentUser);
+      }
+    })
+    .catch(function(err) {
+      if (err.code !== 'auth/popup-closed-by-user') toast(err.message);
+    });
+}
+
+/* ── USERNAME STEP ── */
+function _proceedAfterName(name) {
+  return db.collection('users').doc(currentUser.uid).set({
+    name: name, email: currentUser.email || '',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, {merge: true}).then(function() {
+    currentUserName = name;
+    if (pendingJoinCode) {
+      return joinTeamByCode(pendingJoinCode, name);
+    } else {
+      showStep('auth-step-2');
+    }
+  });
+}
+
+function saveNewUserName() {
+  var name = (g('auth-name').value || '').trim() || g('auth-name-suggested').textContent;
+  if (!name) { g('auth-name-error').textContent = 'Enter a name.'; return; }
+  _proceedAfterName(name).catch(function(err){ g('auth-name-error').textContent = err.message; });
+}
+
+function skipUsername() {
+  var name = g('auth-name-suggested').textContent || 'User';
+  _proceedAfterName(name).catch(function(err){ toast(err.message); });
 }
 
 function handleAuthSuccess(user) {
   db.collection('users').doc(user.uid).get()
     .then(function(doc) {
       if (!doc.exists) {
-        authMode = 'signup';
-        renderAuthScreen();
+        var suggested = (user.displayName || user.email.split('@')[0]).replace(/[^a-zA-Z0-9 ]/g,'');
+        g('auth-name-suggested').textContent = suggested;
+        g('auth-name').value = '';
+        g('auth-name-error').textContent = '';
         showScreen('screen-auth');
+        showStep('auth-step-name');
         return;
       }
       var userData = doc.data();
