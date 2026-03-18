@@ -10,6 +10,7 @@
 <title>Work Journal</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script defer src="/_vercel/insights/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
@@ -481,7 +482,7 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
 </div>
 
 <!-- ══ ONBOARDING ══ -->
-<div class="screen" id="screen-onboard">
+<div class="screen hidden" id="screen-onboard">
   <div class="ob-icon"><img src="icon-192.png" alt="Work Journal"></div>
   <div class="ob-dots"><div class="ob-dot active" id="dot-0"></div><div class="ob-dot" id="dot-1"></div><div class="ob-dot" id="dot-2"></div></div>
   <h1 class="ob-title">Your work,<br><em>tracked beautifully.</em></h1>
@@ -633,6 +634,15 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
       </div>
       <span style="color:var(--muted);font-size:20px">›</span>
     </div>
+    <div id="drawer-signout-section" style="display:none">
+      <div class="dsec-label">Account</div>
+      <div class="ditem" onclick="openSignOutConfirm()">
+        <div class="ditem-left">
+          <div class="ditem-icon" style="background:var(--red-dim)">🚪</div>
+          <div><div class="ditem-text" style="color:var(--red)">Sign out</div><div class="ditem-sub">Return to welcome screen</div></div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="drawer-footer">
     <button class="drawer-close-btn" onclick="closeDrawer()">Close</button>
@@ -754,10 +764,20 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
     <div class="admin-menu-icon" style="background:var(--gold-dim)">🔗</div>
     <div class="admin-menu-text">Invite workers</div>
   </div>
-  <div class="admin-menu-item" onclick="signOutUser()" style="margin-top:4px">
+  <div class="admin-menu-item" onclick="openSignOutConfirm()" style="margin-top:4px">
     <div class="admin-menu-icon" style="background:var(--red-dim)">🚪</div>
     <div class="admin-menu-text" style="color:var(--red)">Sign out</div>
   </div>
+</div>
+
+<!-- ══ SIGN OUT CONFIRM ══ -->
+<div class="sheet-overlay" id="signout-overlay" onclick="closeSignOutConfirm()"></div>
+<div class="sheet" id="signout-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Sign out?</div>
+  <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 24px">You'll be returned to the welcome screen and will need to sign in again to access your team dashboard.</p>
+  <button class="ob-btn" style="background:var(--red);color:#fff" onclick="confirmSignOut()">Yes, sign out</button>
+  <button class="btn-cancel" style="width:100%;margin-top:8px" onclick="closeSignOutConfirm()">Cancel</button>
 </div>
 
 <!-- ══ LOG SESSION SHEET ══ -->
@@ -1186,7 +1206,8 @@ function initApp() {
       showScreen('screen-onboard');
       return;
     }
-    auth.onAuthStateChanged(function(user) {
+    var _unsub = auth.onAuthStateChanged(function(user) {
+      _unsub(); // one-time only — prevents stale listener from firing on later sign-ins
       if (user) {
         currentUser = user;
         handleAuthSuccess(user);
@@ -1768,6 +1789,9 @@ function updateDrawer() {
     div.innerHTML = '<div class="ditem-left"><div class="job-dot '+jobDotClass(i)+'"></div><div><div class="ditem-text">'+job.name+'</div><div class="ditem-sub">'+job.cur+(job.defRate?' &middot; '+fc(job.defRate,job.cur)+'/hr':' &middot; variable')+'</div></div></div><button class="job-edit-btn" onclick="openEditJobPanel('+job.id+')">Edit</button>';
     list.appendChild(div);
   });
+  // sign-out section (team mode only)
+  var soSec = g('drawer-signout-section');
+  if (soSec) soSec.style.display = wjMode === 'team' ? 'block' : 'none';
   // PIN sub-label
   var pinSub = g('pin-drawer-sub');
   if (pinSub) pinSub.textContent = localStorage.getItem('wj_pin') ? 'Enabled' : 'Not set';
@@ -1885,14 +1909,38 @@ initCurSelects();
 function choosePersonal() {
   localStorage.setItem('wj_mode', 'personal');
   wjMode = 'personal';
-  if (userName) { showApp(); } else { showScreen('screen-onboard'); }
+  if (!auth) {
+    // Firebase not available — fall back to direct onboarding
+    if (userName) { showApp(); } else { showScreen('screen-onboard'); }
+    return;
+  }
+  var _unsub = auth.onAuthStateChanged(function(user) {
+    _unsub();
+    if (user) {
+      currentUser = user;
+      // Returning user — restore their local session
+      if (userName) { showApp(); } else { showScreen('screen-onboard'); }
+    } else {
+      renderAuthScreen();
+      showScreen('screen-auth');
+    }
+  });
 }
 function chooseTeam() {
   localStorage.setItem('wj_mode', 'team');
   wjMode = 'team';
   if (!auth) { toast('Firebase not configured yet. Add your config first.'); return; }
-  renderAuthScreen();
-  showScreen('screen-auth');
+  // One-time check: is there already an active Firebase session?
+  var _unsub = auth.onAuthStateChanged(function(user) {
+    _unsub(); // fire once, then unsubscribe
+    if (user) {
+      currentUser = user;
+      handleAuthSuccess(user); // returning user — go straight to their dashboard
+    } else {
+      renderAuthScreen();
+      showScreen('screen-auth'); // new user — show sign in / sign up
+    }
+  });
 }
 function backToWelcome() {
   localStorage.removeItem('wj_mode');
@@ -1970,12 +2018,17 @@ function authSubmit() {
     auth.createUserWithEmailAndPassword(email, pass)
       .then(function(cred) {
         currentUser = cred.user;
-        // Show username step for new email sign-ups
-        var suggested = email.split('@')[0].replace(/[^a-zA-Z0-9]/g,'') || 'User';
-        g('auth-name-suggested').textContent = suggested;
-        g('auth-name').value = '';
-        g('auth-name-error').textContent = '';
-        showStep('auth-step-name');
+        if (wjMode === 'personal') {
+          // Personal mode — no username/team steps, go straight to job setup
+          showScreen('screen-onboard');
+        } else {
+          // Team mode — show username step
+          var suggested = email.split('@')[0].replace(/[^a-zA-Z0-9]/g,'') || 'User';
+          g('auth-name-suggested').textContent = suggested;
+          g('auth-name').value = '';
+          g('auth-name-error').textContent = '';
+          showStep('auth-step-name');
+        }
       })
       .catch(function(err) {
         g('auth-error').textContent = authErrMsg(err.code);
@@ -2004,13 +2057,18 @@ function googleSignIn() {
     })
     .then(function(doc) {
       if (!doc.exists) {
-        // New Google user — offer username choice (suggested = Google displayName)
-        var suggested = currentUser.displayName || currentUser.email.split('@')[0];
-        g('auth-name-suggested').textContent = suggested;
-        g('auth-name').value = '';
-        g('auth-name-error').textContent = '';
-        showScreen('screen-auth');
-        showStep('auth-step-name');
+        if (wjMode === 'personal') {
+          // Personal mode — skip username/team steps, go to job setup
+          showScreen('screen-onboard');
+        } else {
+          // Team mode — offer username choice
+          var suggested = currentUser.displayName || currentUser.email.split('@')[0];
+          g('auth-name-suggested').textContent = suggested;
+          g('auth-name').value = '';
+          g('auth-name-error').textContent = '';
+          showScreen('screen-auth');
+          showStep('auth-step-name');
+        }
       } else {
         currentUserName = doc.data().name || currentUser.displayName || '';
         handleAuthSuccess(currentUser);
@@ -2050,6 +2108,12 @@ function skipUsername() {
 }
 
 function handleAuthSuccess(user) {
+  currentUser = user;
+  if (wjMode === 'personal') {
+    // Personal mode — data lives in localStorage, no Firestore lookup needed
+    if (userName) { showApp(); } else { showScreen('screen-onboard'); }
+    return;
+  }
   db.collection('users').doc(user.uid).get()
     .then(function(doc) {
       if (!doc.exists) {
@@ -2093,8 +2157,21 @@ function handleAuthSuccess(user) {
     });
 }
 
-function signOutUser() {
+function openSignOutConfirm() {
+  closeDrawer();
   closeAdminMenu();
+  g('signout-sheet').classList.add('open');
+  g('signout-overlay').classList.add('open');
+}
+function closeSignOutConfirm() {
+  g('signout-sheet').classList.remove('open');
+  g('signout-overlay').classList.remove('open');
+}
+function confirmSignOut() {
+  closeSignOutConfirm();
+  signOutUser();
+}
+function signOutUser() {
   auth.signOut().then(function() {
     currentUser = null; currentTeam = null; currentRole = null;
     currentUserName = ''; teamMembers = []; teamAllEntries = []; teamAllJobs = [];
