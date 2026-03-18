@@ -1941,6 +1941,23 @@ function toggleAuthMode() {
   var err = g('auth-error'); if(err) err.textContent='';
 }
 
+function authErrMsg(code) {
+  var map = {
+    'auth/invalid-credential':    "No account found with those details. Double-check your email and password, or create a new account.",
+    'auth/user-not-found':        "No account found with that email. Want to create one?",
+    'auth/wrong-password':        "Incorrect password. Please try again.",
+    'auth/email-already-in-use':  "An account with this email already exists. Try signing in instead.",
+    'auth/invalid-email':         "That doesn't look like a valid email address.",
+    'auth/weak-password':         "Password is too weak — use at least 6 characters.",
+    'auth/too-many-requests':     "Too many failed attempts. Please wait a moment and try again.",
+    'auth/network-request-failed':"Connection failed. Check your internet and try again.",
+    'auth/popup-closed-by-user':  "Sign-in window was closed. Please try again.",
+    'auth/cancelled-popup-request':"Sign-in was cancelled. Please try again.",
+    'auth/account-exists-with-different-credential': "An account already exists with this email using a different sign-in method."
+  };
+  return map[code] || "Something went wrong. Please try again.";
+}
+
 function authSubmit() {
   var email = (g('auth-email').value || '').trim();
   var pass = (g('auth-pass').value || '');
@@ -1961,7 +1978,7 @@ function authSubmit() {
         showStep('auth-step-name');
       })
       .catch(function(err) {
-        g('auth-error').textContent = err.message;
+        g('auth-error').textContent = authErrMsg(err.code);
         btn.textContent = prevText; btn.disabled = false;
       });
   } else {
@@ -1971,7 +1988,7 @@ function authSubmit() {
         handleAuthSuccess(cred.user);
       })
       .catch(function(err) {
-        g('auth-error').textContent = err.message;
+        g('auth-error').textContent = authErrMsg(err.code);
         btn.textContent = prevText; btn.disabled = false;
       });
   }
@@ -2000,7 +2017,9 @@ function googleSignIn() {
       }
     })
     .catch(function(err) {
-      if (err.code !== 'auth/popup-closed-by-user') toast(err.message);
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+        g('auth-error').textContent = authErrMsg(err.code);
+      }
     });
 }
 
@@ -2142,7 +2161,7 @@ function joinTeamByCode(code, memberName) {
       loadWorkerData();
     })
     .catch(function(err) {
-      g('auth-error').textContent = err.message;
+      g('auth-error').textContent = authErrMsg(err.code);
       var btn = g('auth-submit-btn');
       btn.textContent = 'Create account'; btn.disabled = false;
     });
