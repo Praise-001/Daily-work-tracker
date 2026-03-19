@@ -807,6 +807,13 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
 <div class="sheet" id="admin-menu-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title">Settings</div>
+  <div class="admin-menu-item" onclick="openAdminAddJobSheet()">
+    <div class="admin-menu-icon" style="background:var(--gold-dim)">💼</div>
+    <div>
+      <div class="admin-menu-text">Manage jobs</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Add jobs workers can log time against</div>
+    </div>
+  </div>
   <div class="admin-menu-item" onclick="toggleThemeFromAdmin()">
     <div class="admin-menu-icon" style="background:var(--surface2)">☀️</div>
     <div class="admin-menu-text">Toggle theme</div>
@@ -1878,7 +1885,7 @@ function openAddJobSheet() {
 }
 function closeAddJobSheet() { g('addjob-sheet').classList.remove('open'); g('addjob-overlay').classList.remove('open'); }
 function addJob() {
-  if (jobs.length >= 4) return toast('Max 4 jobs supported.');
+  if (wjMode !== 'team' && jobs.length >= 4) return toast('Max 4 jobs supported.');
   var name = g('aj-name').value.trim();
   if (!name) return toast('Enter a job name.');
   var cur = g('aj-cur').value.trim() || '$';
@@ -2879,6 +2886,16 @@ function openAdminMenu() {
 function closeAdminMenu() {
   g('admin-menu-overlay').classList.remove('open');
   g('admin-menu-sheet').classList.remove('open');
+}
+function openAdminAddJobSheet() {
+  closeAdminMenu();
+  // Show existing team jobs first, then open add-job sheet
+  var existingJobs = teamAllJobs.filter(function(j){ return j.ownerId === currentUser.uid; });
+  if (existingJobs.length) {
+    var names = existingJobs.map(function(j){ return j.name; }).join(', ');
+    toast('Team jobs: ' + names);
+  }
+  openAddJobSheet();
 }
 function toggleThemeFromAdmin() {
   closeAdminMenu();
