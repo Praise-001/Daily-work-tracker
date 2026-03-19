@@ -1324,6 +1324,7 @@ function initApp() {
   // Personal mode — existing flow
   if (wjMode === 'personal') {
     if (userName) {
+      if (personalTeamId) hasTeamMembership = true; // restore team membership on refresh
       var storedPin = localStorage.getItem('wj_pin');
       var exitAt = parseInt(localStorage.getItem('wj_exit') || '0', 10);
       var away = Date.now() - exitAt;
