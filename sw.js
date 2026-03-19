@@ -1,4 +1,5 @@
-var CACHE = 'wj-v9';
+// Bump version to force clients to pull the latest bundle.
+var CACHE = 'wj-v10-20260319';
 var FILES = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', function(e) {
@@ -15,6 +16,13 @@ self.addEventListener('activate', function(e) {
     })
   );
   self.clients.claim();
+});
+
+// Allow page to trigger an immediate activate of the updated worker.
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', function(e) {
