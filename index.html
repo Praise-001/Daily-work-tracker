@@ -1122,6 +1122,12 @@ function save() {
     : {jobs,entries,userName,isLight,balanceHidden,seenM,primaryCurCode,convertEnabled,cachedRates};
   try { localStorage.setItem('wj3', JSON.stringify(data)); } catch(e) {}
 }
+function clearAppCaches() {
+  if (!('caches' in window)) return Promise.resolve();
+  return caches.keys().then(function(keys){
+    return Promise.all(keys.filter(function(k){ return k.indexOf('wj-') === 0; }).map(function(k){ return caches.delete(k); }));
+  });
+}
 
 /* ══ UTILS ══ */
 function g(id) { return document.getElementById(id); }
@@ -1342,25 +1348,20 @@ function initApp() {
           auth.onAuthStateChanged(function(user) { if (user) currentUser = user; });
         }
       }
-      var storedPin = localStorage.getItem('wj_pin');
-      var exitAt = parseInt(localStorage.getItem('wj_exit') || '0', 10);
-      var away = Date.now() - exitAt;
-      if (storedPin && exitAt && away > 3 * 60 * 1000) {
-        showScreen('screen-pin');
-      } else {
-        showApp();
-        // If arriving via invite link, offer to join — check auth synchronously first
-        if (pendingJoinCode && auth) {
-          if (auth.currentUser) {
-            currentUser = auth.currentUser;
-            setTimeout(function(){ _offerTeamJoin(pendingJoinCode); }, 300);
-          } else {
-            var _pu = auth.onAuthStateChanged(function(user) {
-              _pu();
-              if (user) { currentUser = user; _offerTeamJoin(pendingJoinCode); }
-              else { localStorage.removeItem('wj_pending_join'); pendingJoinCode = null; }
-            });
-          }
+      // Legacy pins are disabled — clear any stored value
+      localStorage.removeItem('wj_pin');
+      showApp();
+      // If arriving via invite link, offer to join — check auth synchronously first
+      if (pendingJoinCode && auth) {
+        if (auth.currentUser) {
+          currentUser = auth.currentUser;
+          setTimeout(function(){ _offerTeamJoin(pendingJoinCode); }, 300);
+        } else {
+          var _pu = auth.onAuthStateChanged(function(user) {
+            _pu();
+            if (user) { currentUser = user; _offerTeamJoin(pendingJoinCode); }
+            else { localStorage.removeItem('wj_pending_join'); pendingJoinCode = null; }
+          });
         }
       }
     } else {
@@ -1401,31 +1402,13 @@ document.addEventListener('visibilitychange', function() {
 
 /* ══ PIN LOCK ══ */
 function pinKey(d) {
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += String(d);
-  updatePinDots('pd-', pinBuffer.length);
-  if (pinBuffer.length === 4) {
-    setTimeout(function() {
-      if (pinBuffer === localStorage.getItem('wj_pin')) {
-        pinBuffer = '';
-        updatePinDots('pd-', 0);
-        g('pin-error').textContent = '';
-        g('screen-pin').classList.add('hidden');
-        showApp();
-      } else {
-        g('pin-error').textContent = 'Incorrect PIN';
-        g('pin-dots').classList.add('pin-shake');
-        setTimeout(function() { g('pin-dots').classList.remove('pin-shake'); }, 400);
-        pinBuffer = '';
-        updatePinDots('pd-', 0);
-      }
-    }, 80);
-  }
+  g('pin-error').textContent = 'PIN lock disabled';
+  g('screen-pin').classList.add('hidden');
+  showApp();
 }
 function pinDel() {
-  if (pinBuffer.length === 0) return;
-  pinBuffer = pinBuffer.slice(0, -1);
-  updatePinDots('pd-', pinBuffer.length);
+  pinBuffer = '';
+  updatePinDots('pd-', 0);
 }
 function updatePinDots(prefix, count) {
   for (var i = 0; i < 4; i++) {
@@ -1438,45 +1421,18 @@ function updatePinDots(prefix, count) {
 function openPinSetup() {
   closeDrawer();
   pinSetupBuffer = ''; pinSetupFirst = '';
-  g('pin-setup-label').textContent = 'Choose a 4-digit PIN';
-  g('pin-setup-error').textContent = '';
+  g('pin-setup-label').textContent = 'PIN lock is disabled for security';
+  g('pin-setup-error').textContent = 'Stored PINs have been removed.';
   updatePinDots('spd-', 0);
   var rw = g('pin-remove-wrap');
-  if (rw) rw.style.display = localStorage.getItem('wj_pin') ? 'block' : 'none';
+  if (rw) rw.style.display = 'none';
   g('panel-pin-setup').classList.add('open');
 }
 function closePanelPinSetup() { g('panel-pin-setup').classList.remove('open'); }
 function pinSetupKey(d) {
-  if (pinSetupBuffer.length >= 4) return;
-  pinSetupBuffer += String(d);
-  updatePinDots('spd-', pinSetupBuffer.length);
-  if (pinSetupBuffer.length === 4) {
-    setTimeout(function() {
-      if (!pinSetupFirst) {
-        // First entry done — ask to confirm
-        pinSetupFirst = pinSetupBuffer;
-        pinSetupBuffer = '';
-        updatePinDots('spd-', 0);
-        g('pin-setup-label').textContent = 'Confirm your PIN';
-        g('pin-setup-error').textContent = '';
-      } else {
-        // Confirm stage
-        if (pinSetupBuffer === pinSetupFirst) {
-          localStorage.setItem('wj_pin', pinSetupBuffer);
-          closePanelPinSetup();
-          updateDrawer();
-          toast('PIN set');
-        } else {
-          g('pin-setup-error').textContent = "PINs don't match — try again";
-          g('pin-setup-dots').classList.add('pin-shake');
-          setTimeout(function() { g('pin-setup-dots').classList.remove('pin-shake'); }, 400);
-          pinSetupFirst = ''; pinSetupBuffer = '';
-          updatePinDots('spd-', 0);
-          g('pin-setup-label').textContent = 'Choose a 4-digit PIN';
-        }
-      }
-    }, 80);
-  }
+  g('pin-setup-error').textContent = 'PIN lock is disabled for security.';
+  pinSetupBuffer = '';
+  updatePinDots('spd-', 0);
 }
 function pinSetupDel() {
   if (pinSetupBuffer.length === 0) return;
@@ -2418,8 +2374,9 @@ function signOutUser() {
   auth.signOut().then(function() {
     currentUser = null; currentTeam = null; currentRole = null;
     currentUserName = ''; teamMembers = []; teamAllEntries = []; teamAllJobs = [];
-    localStorage.removeItem('wj_mode');
+    ['wj_mode','wj_pending_join','wj_exit','wj_pin','wj_team_id'].forEach(function(k){ localStorage.removeItem(k); });
     wjMode = null;
+    clearAppCaches();
     showScreen('screen-welcome');
   });
 }
@@ -2449,6 +2406,7 @@ function closeApproveSheet() {
   g('approve-overlay').classList.remove('open');
 }
 function confirmApprove() {
+  if (currentRole !== 'admin') { g('approve-error').textContent = 'Admins only.'; return; }
   var rate = parseFloat(g('approve-rate').value);
   if (!rate || rate <= 0) { g('approve-error').textContent = 'Enter a valid rate.'; return; }
   var entryId = _pendingApproveEntryId;
@@ -2709,11 +2667,13 @@ function loadWorkerData() {
 ══════════════════════════════════ */
 function syncJobToFirestore(job) {
   if (!db || !currentTeam || !currentUser) return;
+  if (currentRole !== 'admin') { console.warn('job sync blocked: admin only'); return; }
   var data = {ownerId:currentUser.uid, name:job.name, cur:job.cur, curCode:job.curCode||'', defRate:job.defRate||''};
   db.collection('teams').doc(currentTeam.id).collection('jobs').doc(String(job.id)).set(data).catch(function(e){console.warn('job sync err',e);});
 }
 function deleteJobFirestore(jobId) {
   if (!db || !currentTeam) return;
+  if (currentRole !== 'admin') { console.warn('job delete blocked: admin only'); return; }
   db.collection('teams').doc(currentTeam.id).collection('jobs').doc(String(jobId)).delete().catch(function(e){console.warn('job del err',e);});
 }
 function syncEntryToFirestore(entry) {
@@ -2996,6 +2956,7 @@ function openAddJobFromAdmin() {
   openAddJobSheet();
 }
 function deleteTeamJob(jobId) {
+  if (currentRole !== 'admin') { toast('Only admins can delete jobs'); return; }
   var idx = teamAllJobs.findIndex(function(j){ return String(j.id) === String(jobId); });
   if (idx === -1) return;
   teamAllJobs.splice(idx, 1);
@@ -3064,6 +3025,7 @@ function toggleThemeFromAdmin() {
    CSV EXPORT
 ══════════════════════════════════ */
 function exportCSV() {
+  if (currentRole !== 'admin') { toast('Only admins can export team data.'); return; }
   if (!teamMembers.length && !teamAllEntries.length) return toast('No data to export.');
   var rows = [['Worker','Job','Date','Hours','Rate','Currency','Earned']];
   var filtered = filterEntriesByPeriod(teamAllEntries, adminPeriod);
