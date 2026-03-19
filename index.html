@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0d0d0d" id="theme-meta">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -991,6 +991,15 @@ var showingAllView = true;
 var primaryCurCode = '';   // ISO 4217 e.g. "USD"
 var convertEnabled = false;
 var cachedRates = null;    // {base, rates:{code:rate,...}, fetchedAt}
+// Escape user-controlled strings before injecting into HTML.
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 var lastLoggedAt = 0;      // timestamp of last session save
 var clearSessionsTimer = null;
 var pinBuffer = '';
@@ -1127,7 +1136,7 @@ function heroClass(idx) { return ['job-0','job-1','job-2','job-3'][idx%4]; }
 function scClass(idx) { return ['sc-0','sc-1','sc-2','sc-3'][idx%4]; }
 function amtClass(idx) { return ['c0','c1','c2','c3'][idx%4]; }
 
-function fc(n, cur) { n = Number(n)||0; return (cur||'$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fc(n, cur) { n = Number(n)||0; return esc(cur||'$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function fh(h) { h = Number(h)||0; var hr=Math.floor(h), m=Math.round((h-hr)*60); return m>0?hr+'h '+m+'m':hr+'h'; }
 function fd2(s) { if(!s)return '—'; try{return new Date(s+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}catch(e){return '—';} }
 function fday(s) { if(!s)return '—'; try{return new Date(s+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'}).toUpperCase();}catch(e){return '—';} }
@@ -1325,6 +1334,14 @@ function initApp() {
   if (wjMode === 'personal') {
     if (userName) {
       if (personalTeamId) hasTeamMembership = true; // restore team membership on refresh
+      // Silently resolve Firebase auth so team data can load
+      if (personalTeamId && auth) {
+        if (auth.currentUser) {
+          currentUser = auth.currentUser;
+        } else {
+          auth.onAuthStateChanged(function(user) { if (user) currentUser = user; });
+        }
+      }
       var storedPin = localStorage.getItem('wj_pin');
       var exitAt = parseInt(localStorage.getItem('wj_exit') || '0', 10);
       var away = Date.now() - exitAt;
@@ -1524,7 +1541,7 @@ function renderDashboard() {
         var tname = currentTeam ? currentTeam.name : 'the team';
         html = '<div style="text-align:center;padding:60px 20px">' +
           '<div style="font-size:48px;margin-bottom:16px">👋</div>' +
-          '<div style="font-family:var(--serif);font-size:22px;margin-bottom:10px">Welcome to ' + tname + '!</div>' +
+          '<div style="font-family:var(--serif);font-size:22px;margin-bottom:10px">Welcome to ' + esc(tname) + '!</div>' +
           '<div style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:28px">Set up your first job — your job title, rate, and currency — before you can start logging sessions.</div>' +
           '<button class="ob-btn" onclick="openAddJobSheet()">Set up your first job →</button>' +
           '</div>';
@@ -1577,10 +1594,10 @@ function renderOverview() {
     jobs.forEach(function(job, i) {
       var t = totalsForJob(job.id);
       html += '<div class="split-card ' + scClass(i) + '">';
-      html += '<div class="sc-name">' + job.name + '</div>';
+      html += '<div class="sc-name">' + esc(job.name) + '</div>';
       html += '<div class="sc-amount ' + amtClass(i) + '">' + fc(t.earned, job.cur) + '</div>';
       html += '<div class="sc-meta">' + fh(t.hours) + ' &middot; ' + t.count + ' session' + (t.count!==1?'s':'') + '</div>';
-      html += '<div class="sc-meta" style="margin-top:2px">' + job.cur + ' &middot; ' + (job.defRate ? fc(job.defRate, job.cur)+'/hr' : 'variable rate') + '</div>';
+      html += '<div class="sc-meta" style="margin-top:2px">' + esc(job.cur) + ' &middot; ' + (job.defRate ? fc(job.defRate, job.cur)+'/hr' : 'variable rate') + '</div>';
       html += '<button class="sc-log-btn" onclick="quickLog('+job.id+')">+ Log session</button>';
       html += '</div>';
     });
@@ -1599,8 +1616,8 @@ function renderOverview() {
       var earned = (Number(e.hours)||0) * (Number(e.rate)||0);
       html += '<div class="ecard ' + jobCardClass(ji) + '" style="animation-delay:'+(i*0.04)+'s">';
       html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+fc(earned,job?job.cur:'$')+'</div></div>';
-      if (job) html += '<span class="ejob-tag '+jobTagClass(ji)+'">'+job.name+'</span>';
-      html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+      if (job) html += '<span class="ejob-tag '+jobTagClass(ji)+'">'+esc(job.name)+'</span>';
+      html += '<div class="enote">'+(e.note?esc(e.note):'<span style="color:var(--muted)">No note</span>')+'</div>';
       html += '<div class="emeta">'+fh(e.hours)+' &middot; '+fc(e.rate,job?job.cur:'$')+'/hr</div>';
       html += '<div class="eactions"><button class="eact-btn" onclick="openEditEntry('+e.id+')">✏ Edit</button><button class="eact-btn danger" onclick="deleteEntry('+e.id+')">✕ Remove</button></div>';
       html += '</div>';
@@ -1618,10 +1635,10 @@ function renderJobView(job) {
 
   // Hero card
   html += '<div class="hero-card ' + heroClass(ji) + '">';
-  html += '<div class="hero-top-row"><div class="hero-label">' + job.name + '</div>';
+  html += '<div class="hero-top-row"><div class="hero-label">' + esc(job.name) + '</div>';
   html += '<button class="eye-btn" onclick="toggleBalance()" style="background:rgba(255,255,255,0.08);border:none;border-radius:99px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer">' + eyeSVG() + '</button></div>';
-  html += '<div id="balance-row" class="hero-amount-row"><span class="hero-cur">' + job.cur + '</span><span class="hero-amt" id="hero-amt-val">' + t.earned.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',') + '</span></div>';
-  html += '<div id="balance-hidden" style="display:none;align-items:baseline;gap:3px"><span class="hero-cur">' + job.cur + '</span><span class="hero-amt" style="letter-spacing:4px">••••••</span></div>';
+  html += '<div id="balance-row" class="hero-amount-row"><span class="hero-cur">' + esc(job.cur) + '</span><span class="hero-amt" id="hero-amt-val">' + t.earned.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',') + '</span></div>';
+  html += '<div id="balance-hidden" style="display:none;align-items:baseline;gap:3px"><span class="hero-cur">' + esc(job.cur) + '</span><span class="hero-amt" style="letter-spacing:4px">••••••</span></div>';
   html += '<div class="hero-sub">' + t.count + ' session' + (t.count!==1?'s':'') + ' logged</div>';
   html += '<div class="hero-divider"></div>';
   html += '<div class="hero-stats">';
@@ -1636,7 +1653,7 @@ function renderJobView(job) {
   // Entries for this job — only show for 30s after a log
   var jobEntries = entriesForJob(job.id).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
   if (!jobEntries.length) {
-    html += '<div class="empty-state"><span class="ei">⏱️</span><h3>Nothing logged yet</h3><p>Tap "Log session" below to record your first session for ' + job.name + '.</p></div>';
+    html += '<div class="empty-state"><span class="ei">⏱️</span><h3>Nothing logged yet</h3><p>Tap "Log session" below to record your first session for ' + esc(job.name) + '.</p></div>';
   } else if ((Date.now() - lastLoggedAt) < 30000) {
     html += '<div class="sec-head">Sessions</div>';
     jobEntries.slice(0, 10).forEach(function(e, i) {
@@ -1647,7 +1664,7 @@ function renderJobView(job) {
       var metaDisplay = approved ? fh(e.hours)+' worked &middot; '+fc(e.rate,job.cur)+'/hr' : fh(e.hours)+' worked';
       html += '<div class="ecard ' + jobCardClass(ji) + '" style="animation-delay:'+(i*0.04)+'s">';
       html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+earnedDisplay+'</div></div>';
-      html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+      html += '<div class="enote">'+(e.note?esc(e.note):'<span style="color:var(--muted)">No note</span>')+'</div>';
       html += '<div class="emeta">'+metaDisplay+(statusBadge?' &nbsp;'+statusBadge:'')+'</div>';
       html += '<div class="eactions"><button class="eact-btn" onclick="openEditEntry('+e.id+')">✏ Edit</button><button class="eact-btn danger" onclick="deleteEntry('+e.id+')">✕ Remove</button></div>';
       html += '</div>';
@@ -1901,8 +1918,8 @@ function renderAllLogs() {
       var metaDisplay = approved ? fh(e.hours)+' &middot; '+fc(e.rate,job?job.cur:'$')+'/hr' : fh(e.hours)+' worked';
       html += '<div class="ecard ' + jobCardClass(ji) + '">';
       html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+earnedDisplay+'</div></div>';
-      if (job) html += '<span class="ejob-tag '+jobTagClass(ji)+'">'+job.name+'</span>';
-      html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+      if (job) html += '<span class="ejob-tag '+jobTagClass(ji)+'">'+esc(job.name)+'</span>';
+      html += '<div class="enote">'+(e.note?esc(e.note):'<span style="color:var(--muted)">No note</span>')+'</div>';
       html += '<div class="emeta">'+metaDisplay+statusBadge+'</div>';
       html += '<div class="eactions"><button class="eact-btn" onclick="editFromLogs('+e.id+')">✏ Edit</button><button class="eact-btn danger" onclick="delFromLogs('+e.id+')">✕ Remove</button></div>';
       html += '</div>';
@@ -2000,7 +2017,7 @@ function updateDrawer() {
   jobs.forEach(function(job, i) {
     var div = document.createElement('div');
     div.className = 'ditem';
-    div.innerHTML = '<div class="ditem-left"><div class="job-dot '+jobDotClass(i)+'"></div><div><div class="ditem-text">'+job.name+'</div><div class="ditem-sub">'+job.cur+(job.defRate?' &middot; '+fc(job.defRate,job.cur)+'/hr':' &middot; variable')+'</div></div></div><button class="job-edit-btn" onclick="openEditJobPanel('+job.id+')">Edit</button>';
+    div.innerHTML = '<div class="ditem-left"><div class="job-dot '+jobDotClass(i)+'"></div><div><div class="ditem-text">'+esc(job.name)+'</div><div class="ditem-sub">'+esc(job.cur)+(job.defRate?' &middot; '+fc(job.defRate,job.cur)+'/hr':' &middot; variable')+'</div></div></div><button class="job-edit-btn" onclick="openEditJobPanel('+job.id+')">Edit</button>';
     list.appendChild(div);
   });
   // sign-out section (team mode only)
@@ -2419,8 +2436,8 @@ function openApproveSheet(entryId) {
   var detail = g('approve-detail');
   if (detail) {
     detail.innerHTML =
-      '<strong>'+(worker?worker.name:'Worker')+'</strong> &mdash; '+(jobObj?jobObj.name:'Session')+'<br>'+
-      '<span style="color:var(--muted)">'+fd2(e.date)+' &middot; '+fh(e.hours)+' worked'+(e.note?' &middot; '+e.note:'')+'</span>';
+      '<strong>'+esc(worker?worker.name:'Worker')+'</strong> &mdash; '+esc(jobObj?jobObj.name:'Session')+'<br>'+
+      '<span style="color:var(--muted)">'+fd2(e.date)+' &middot; '+fh(e.hours)+' worked'+(e.note?' &middot; '+esc(e.note):'')+'</span>';
   }
   g('approve-rate').value = '';
   g('approve-error').textContent = '';
@@ -2498,7 +2515,20 @@ function closeMyTeam() {
 
 function loadPersonalTeamData(callback) {
   var tid = personalTeamId;
-  if (!tid || !db || !currentUser) return;
+  if (!tid || !db) return;
+  if (!currentUser) {
+    // Firebase auth not resolved yet — wait for it then retry
+    if (!auth) return;
+    var _u = auth.onAuthStateChanged(function(user) {
+      _u();
+      if (user) { currentUser = user; loadPersonalTeamData(callback); }
+      else {
+        var c = g('my-team-content');
+        if (c) c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">Could not load team data. Try signing in again.</div>';
+      }
+    });
+    return;
+  }
   var uid = currentUser.uid;
   g('my-team-content').innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">Loading…</div>';
   Promise.all([
@@ -2541,8 +2571,8 @@ function renderMyTeamView() {
       var badge = approved ? '<span class="status-approved">✓ Approved</span>' : '<span class="status-pending">⏳ Pending</span>';
       html += '<div class="ecard ecard-a">';
       html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned">'+earnedStr+'</div></div>';
-      if (jobObj) html += '<span class="ejob-tag">'+jobObj.name+'</span>';
-      html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+      if (jobObj) html += '<span class="ejob-tag">'+esc(jobObj.name)+'</span>';
+      html += '<div class="enote">'+(e.note?esc(e.note):'<span style="color:var(--muted)">No note</span>')+'</div>';
       html += '<div class="emeta">'+fh(e.hours)+' worked &nbsp;'+badge+'</div>';
       html += '</div>';
     });
@@ -2723,7 +2753,7 @@ function loadAdminData() {
     renderAdminDashboard();
   })
   .catch(function(err) {
-    g('admin-content').innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--red);font-size:14px">Error loading team data.<br><br><span style="color:var(--muted);font-size:12px">'+err.message+'</span></div>';
+    g('admin-content').innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--red);font-size:14px">Error loading team data.<br><br><span style="color:var(--muted);font-size:12px">'+esc(err.message)+'</span></div>';
   });
 }
 
@@ -2768,7 +2798,7 @@ function renderAdminDashboard() {
       var jobName = (teamAllJobs.find(function(j){ return String(j.id)===String(e.jobId); })||{}).name || 'Session';
       html += '<div class="pending-item">';
       html += '<div style="flex:1;min-width:0">';
-      html += '<div style="font-size:13px;font-weight:500;color:var(--text)">'+workerName+' &mdash; '+jobName+'</div>';
+      html += '<div style="font-size:13px;font-weight:500;color:var(--text)">'+esc(workerName)+' &mdash; '+esc(jobName)+'</div>';
       html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+fd2(e.date)+' &middot; '+fh(e.hours)+' worked'+(e.note?' &middot; '+e.note:'')+'</div>';
       html += '</div>';
       html += '<button class="pending-approve-btn" onclick="openApproveSheet(\''+e.id+'\')">Approve →</button>';
@@ -2788,7 +2818,7 @@ function renderAdminDashboard() {
       var avatarClass = 'awc-avatar' + (i>0?' wa-'+Math.min(i,3):'');
       html += '<div class="admin-worker-card" style="animation-delay:'+(i*0.05)+'s" onclick="openWorkerDetail(\''+member.uid+'\')">';
       html += '<div class="awc-top"><div class="'+avatarClass+'">'+(member.name||'?').charAt(0).toUpperCase()+'</div>';
-      html += '<div><div class="awc-name">'+(member.name||'Worker')+'</div><div class="awc-role">'+memberEntries.length+' session'+(memberEntries.length!==1?'s':'')+' this period</div></div></div>';
+      html += '<div><div class="awc-name">'+esc(member.name||'Worker')+'</div><div class="awc-role">'+memberEntries.length+' session'+(memberEntries.length!==1?'s':'')+' this period</div></div></div>';
       html += '<div class="awc-stats">';
       html += '<div class="awc-stat"><div class="awc-stat-val">'+fh(mHours)+'</div><div class="awc-stat-lbl">Hours</div></div>';
       html += '<div class="awc-stat"><div class="awc-stat-val">$'+mEarned.toFixed(0)+'</div><div class="awc-stat-lbl">Owed</div></div>';
@@ -2869,9 +2899,9 @@ function renderWorkerDetail() {
         var statusBadge = approved ? '<span class="status-approved">✓ Approved</span>' : '<span class="status-pending">⏳ Pending</span>';
         html += '<div class="ecard jc-0">';
         html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned ec-0">'+(approved?'$'+earned.toFixed(2):'—')+'</div></div>';
-        if (job) html += '<span class="ejob-tag jt-0">'+job.name+'</span> ';
+        if (job) html += '<span class="ejob-tag jt-0">'+esc(job.name)+'</span> ';
         html += statusBadge;
-        html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+        html += '<div class="enote">'+(e.note?esc(e.note):'<span style="color:var(--muted)">No note</span>')+'</div>';
         html += '<div class="emeta">'+fh(e.hours)+(approved?' &middot; $'+Number(e.rate).toFixed(2)+'/hr':'')+'</div>';
         html += '</div>';
       });
@@ -2952,8 +2982,8 @@ function renderAdminJobsList() {
   var html = '';
   teamAllJobs.forEach(function(job) {
     html += '<div class="admin-job-item">';
-    html += '<div class="admin-job-info"><div class="admin-job-name">' + job.name + '</div>';
-    if (job.defRate) html += '<div class="admin-job-rate">' + (job.cur||'$') + job.defRate + '/hr default</div>';
+    html += '<div class="admin-job-info"><div class="admin-job-name">' + esc(job.name) + '</div>';
+    if (job.defRate) html += '<div class="admin-job-rate">' + esc(job.cur||'$') + job.defRate + '/hr default</div>';
     html += '</div>';
     html += '<button class="admin-job-edit" onclick="openEditTeamJob(\'' + String(job.id) + '\')">Edit</button>';
     html += '<button class="admin-job-del" onclick="deleteTeamJob(\'' + String(job.id) + '\')">Remove</button>';
