@@ -8,7 +8,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Work Journal">
 <title>Work Journal</title>
-<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script defer src="/_vercel/insights/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -277,13 +276,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 #confetti-canvas{position:fixed;inset:0;z-index:190;pointer-events:none;}
 
-.install-bar{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;margin:0 15px 0;display:none;align-items:center;gap:12px;flex-shrink:0;}
-.install-bar.show{display:flex;}
-.install-bar p{flex:1;font-size:13px;}
-.install-bar p span{color:var(--muted);font-size:11px;display:block;margin-top:2px;}
-.inst-btn{background:var(--gold);color:#0d0d0d;border:none;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
-.ios-hint{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:11px 14px;margin:4px 15px 0;font-size:13px;color:var(--muted);display:none;flex-shrink:0;}
-.ios-hint.show{display:block;}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
@@ -309,6 +301,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:12px;}
 .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
 body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
+
+/* ── STATUS BADGES ── */
+.status-pending{font-size:10px;color:#f5a623;background:rgba(245,166,35,0.12);padding:2px 7px;border-radius:10px;font-family:var(--font);white-space:nowrap;}
+.status-approved{font-size:10px;color:#4caf50;background:rgba(76,175,80,0.12);padding:2px 7px;border-radius:10px;font-family:var(--font);white-space:nowrap;}
+
+/* ── PENDING APPROVALS SECTION (admin) ── */
+.pending-section{background:rgba(245,166,35,0.06);border:1px solid rgba(245,166,35,0.18);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+.pending-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.pending-item:last-child{border-bottom:none;padding-bottom:0;}
+.pending-approve-btn{font-size:12px;color:var(--gold);background:none;border:1px solid rgba(201,168,76,0.4);border-radius:20px;padding:5px 12px;cursor:pointer;white-space:nowrap;font-family:var(--font);flex-shrink:0;}
+.pending-approve-btn:active{background:rgba(201,168,76,0.1);}
+
+/* ── MY TEAM PANEL FOOTER ── */
+.panel-footer{padding:14px 16px;border-top:1px solid var(--border);flex-shrink:0;}
+.panel-footer .btn-save{margin-top:0;}
+
+/* ── WORKER DETAIL PERIOD FILTER ── */
+.wd-filters{padding:10px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.wd-period-tabs{display:flex;gap:6px;margin-bottom:0;}
+.wd-period-tabs button{font-size:12px;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-family:var(--font);}
+.wd-period-tabs button.active{background:var(--gold);color:#0d0d0d;border-color:var(--gold);font-weight:600;}
+#wd-custom-range{display:flex;align-items:center;gap:8px;margin-top:10px;}
+#wd-custom-range input[type=date]{flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font);}
+#wd-custom-range button{font-size:12px;padding:6px 14px;border-radius:20px;background:var(--gold);color:#0d0d0d;border:none;cursor:pointer;font-weight:600;font-family:var(--font);white-space:nowrap;}
 
 /* ── ADMIN SCREEN ── */
 #screen-admin{background:var(--bg);display:flex;flex-direction:column;}
@@ -563,13 +579,7 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
   <!-- Job tabs -->
   <div class="tab-bar" id="tab-bar"></div>
 
-  <div class="install-bar" id="install-bar">
-    <div style="font-size:22px">📲</div>
-    <p>Add to home screen<span>Works offline, auto-saves</span></p>
-    <button class="inst-btn" onclick="installApp()">Install</button>
-  </div>
-  <div class="ios-hint" id="ios-hint">📲 Tap <strong>Share</strong> → <strong>"Add to Home Screen"</strong> for offline access.</div>
-  <div class="app-content" id="app-content">
+<div class="app-content" id="app-content">
     <!-- dynamic content rendered here -->
   </div>
 
@@ -641,6 +651,19 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
           <div class="ditem-icon" style="background:var(--red-dim)">🚪</div>
           <div><div class="ditem-text" style="color:var(--red)">Sign out</div><div class="ditem-sub">Return to welcome screen</div></div>
         </div>
+      </div>
+    </div>
+    <div id="drawer-my-team-section" style="display:none">
+      <div class="dsec-label">Team</div>
+      <div class="ditem" onclick="openMyTeam()">
+        <div class="ditem-left">
+          <div class="ditem-icon">👥</div>
+          <div>
+            <div class="ditem-text" id="drawer-my-team-name">My Team</div>
+            <div class="ditem-sub">View your team sessions</div>
+          </div>
+        </div>
+        <span style="color:var(--muted);font-size:20px">›</span>
       </div>
     </div>
   </div>
@@ -727,12 +750,40 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
   </div>
 </div>
 
+<!-- ══ MY TEAM PANEL (personal user's team view) ══ -->
+<div class="panel" id="panel-my-team">
+  <div class="panel-header">
+    <button class="panel-back" onclick="closeMyTeam()">‹</button>
+    <div class="panel-title" id="my-team-title">My Team</div>
+  </div>
+  <div class="panel-body" id="my-team-content">
+    <div style="text-align:center;padding:60px 20px;color:var(--muted);font-size:14px">Loading…</div>
+  </div>
+  <div class="panel-footer">
+    <button class="btn-save" onclick="openTeamLogSheet()">+ Log team session</button>
+  </div>
+</div>
+
 <!-- ══ WORKER DETAIL PANEL (admin view) ══ -->
 <div class="panel" id="panel-worker-detail">
   <div class="panel-header">
     <button class="panel-back" onclick="closeWorkerDetail()">‹</button>
     <div class="panel-title" id="worker-detail-name">Worker</div>
     <span class="panel-badge" id="worker-detail-badge">0 sessions</span>
+  </div>
+  <div class="wd-filters">
+    <div class="wd-period-tabs" id="wd-period-tabs">
+      <button class="active" onclick="setWorkerDetailPeriod('all')">All</button>
+      <button onclick="setWorkerDetailPeriod('month')">Month</button>
+      <button onclick="setWorkerDetailPeriod('week')">Week</button>
+      <button onclick="setWorkerDetailPeriod('custom')">Custom</button>
+    </div>
+    <div id="wd-custom-range" style="display:none">
+      <input type="date" id="wd-from">
+      <span style="color:var(--muted);font-size:12px">–</span>
+      <input type="date" id="wd-to">
+      <button onclick="applyWorkerDetailCustomRange()">Apply</button>
+    </div>
   </div>
   <div class="panel-body" id="worker-detail-body"></div>
 </div>
@@ -796,6 +847,29 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
   <div class="field"><label>Note (optional)</label><input type="text" id="ls-note" placeholder="What did you work on?"></div>
   <button class="btn-save" onclick="submitLog()">Save session</button>
   <button class="btn-cancel" id="ls-cancel-btn" style="display:none" onclick="cancelEdit()">Cancel edit</button>
+</div>
+
+<!-- ══ APPROVE SESSION SHEET (admin) ══ -->
+<div class="sheet-overlay" id="approve-overlay" onclick="closeApproveSheet()"></div>
+<div class="sheet" id="approve-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Approve Session</div>
+  <div id="approve-detail" style="background:var(--surface2);border-radius:var(--radius);padding:14px;margin-bottom:16px;font-size:13px;line-height:1.7;color:var(--text)"></div>
+  <div class="field"><label>Rate ($/hr)</label><input type="number" id="approve-rate" placeholder="e.g. 20" min="0" inputmode="decimal" step="0.5"></div>
+  <div class="auth-error" id="approve-error"></div>
+  <button class="btn-save" onclick="confirmApprove()">Approve &amp; Save</button>
+  <button class="btn-cancel" onclick="closeApproveSheet()">Cancel</button>
+</div>
+
+<!-- ══ TEAM JOIN OFFER SHEET (personal user invited) ══ -->
+<div class="sheet-overlay" id="team-join-overlay" onclick="dismissTeamJoinOffer()"></div>
+<div class="sheet" id="team-join-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Team Invite</div>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 16px">You've been invited to join a team. Accept to add a "My Team" section to your personal dashboard.</p>
+  <div id="team-join-team-name" style="font-family:var(--serif);font-size:18px;text-align:center;margin-bottom:20px;color:var(--gold-light)"></div>
+  <button class="btn-save" onclick="acceptTeamJoinOffer()">Join Team</button>
+  <button class="btn-cancel" onclick="dismissTeamJoinOffer()">Not now</button>
 </div>
 
 <!-- ══ ADD JOB SHEET ══ -->
@@ -865,7 +939,6 @@ var userName = '', isLight = false, balanceHidden = false;
 var seenM = {}, mQueue = [], showingM = false;
 var activeJobId = null;
 var editEntryId = null, editJobId = null;
-var deferredPrompt = null;
 var showingAllView = true;
 var primaryCurCode = '';   // ISO 4217 e.g. "USD"
 var convertEnabled = false;
@@ -885,8 +958,20 @@ var teamMembers = [];          // [{uid, name, role}] for admin view
 var teamAllEntries = [];       // all entries from Firestore for admin view
 var teamAllJobs = [];          // all jobs from Firestore for admin view
 var adminPeriod = 'week';      // 'week' | 'month' | 'all'
+var workerDetailPeriod = 'all';    // 'week' | 'month' | 'all' | 'custom'
+var workerDetailCustomFrom = '';   // ISO date e.g. '2025-01-01'
+var workerDetailCustomTo = '';     // ISO date e.g. '2025-03-31'
+var _currentWorkerDetailUid = null;
 var authMode = 'signin';       // 'signin' | 'signup'
-var pendingJoinCode = null;    // invite code from URL param
+var pendingJoinCode = localStorage.getItem('wj_pending_join') || null;
+
+/* ── PERSONAL + TEAM HYBRID STATE ── */
+var hasTeamMembership = false;               // personal user who is also on a team
+var personalTeamId = localStorage.getItem('wj_team_id') || null;
+var personalTeamData = null;                 // {id, name, adminUid, inviteCode}
+var personalTeamEntries = [];               // Firestore entries for personal user in team
+var personalTeamJobs = [];                  // team jobs for personal user
+var _pendingApproveEntryId = null;          // entry being approved by admin
 
 var HM=[
   {id:'h10',val:10,e:'⚡',t:'10 Hours In!',m:"You've clocked 10 hours. The grind has officially begun."},
@@ -1007,8 +1092,13 @@ function totalsForJob(jobId) {
   var es = entriesForJob(jobId);
   return { hours: es.reduce(function(s,e){return s+(Number(e.hours)||0);},0), earned: es.reduce(function(s,e){return s+(Number(e.hours)||0)*(Number(e.rate)||0);},0), count: es.length };
 }
+function isApproved(e) { return !e.status || e.status === 'approved'; } // backward-compatible
 function allTotals() {
-  return { hours: entries.reduce(function(s,e){return s+(Number(e.hours)||0);},0), earned: entries.reduce(function(s,e){return s+(Number(e.hours)||0)*(Number(e.rate)||0);},0), count: entries.length };
+  return {
+    hours: entries.reduce(function(s,e){return s+(Number(e.hours)||0);},0),
+    earned: entries.reduce(function(s,e){return isApproved(e)?s+(Number(e.hours)||0)*(Number(e.rate)||0):s;},0),
+    count: entries.length
+  };
 }
 
 /* ══ MULTI-CURRENCY HELPERS ══ */
@@ -1168,8 +1258,11 @@ function initApp() {
     var joinCode = urlParams.get('join');
     if (joinCode) {
       pendingJoinCode = joinCode;
-      localStorage.setItem('wj_mode', 'team');
-      wjMode = 'team';
+      localStorage.setItem('wj_pending_join', joinCode);
+      if (!wjMode) { // Only switch to team mode if user has no mode set yet
+        localStorage.setItem('wj_mode', 'team');
+        wjMode = 'team';
+      }
       history.replaceState({}, '', window.location.pathname);
     }
   } catch(e) {}
@@ -1190,6 +1283,19 @@ function initApp() {
         showScreen('screen-pin');
       } else {
         showApp();
+        // If arriving via invite link, offer to join — check auth synchronously first
+        if (pendingJoinCode && auth) {
+          if (auth.currentUser) {
+            currentUser = auth.currentUser;
+            setTimeout(function(){ _offerTeamJoin(pendingJoinCode); }, 300);
+          } else {
+            var _pu = auth.onAuthStateChanged(function(user) {
+              _pu();
+              if (user) { currentUser = user; _offerTeamJoin(pendingJoinCode); }
+              else { localStorage.removeItem('wj_pending_join'); pendingJoinCode = null; }
+            });
+          }
+        }
       }
     } else {
       showScreen('screen-onboard');
@@ -1365,6 +1471,14 @@ function renderDashboard() {
         // activeJobId invalid, reset to first job
         activeJobId = jobs[0].id;
         html = renderJobView(jobs[0]);
+      } else if (wjMode === 'team') {
+        var tname = currentTeam ? currentTeam.name : 'the team';
+        html = '<div style="text-align:center;padding:60px 20px">' +
+          '<div style="font-size:48px;margin-bottom:16px">👋</div>' +
+          '<div style="font-family:var(--serif);font-size:22px;margin-bottom:10px">Welcome to ' + tname + '!</div>' +
+          '<div style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:28px">Set up your first job — your job title, rate, and currency — before you can start logging sessions.</div>' +
+          '<button class="ob-btn" onclick="openAddJobSheet()">Set up your first job →</button>' +
+          '</div>';
       } else {
         html = renderEmpty('No jobs yet', 'Tap the drawer to add your first job.');
       }
@@ -1477,11 +1591,15 @@ function renderJobView(job) {
   } else if ((Date.now() - lastLoggedAt) < 30000) {
     html += '<div class="sec-head">Sessions</div>';
     jobEntries.slice(0, 10).forEach(function(e, i) {
-      var earned = (Number(e.hours)||0) * (Number(e.rate)||0);
+      var approved = isApproved(e);
+      var earned = approved ? (Number(e.hours)||0) * (Number(e.rate)||0) : 0;
+      var statusBadge = wjMode === 'team' ? (approved ? '<span class="status-approved">✓ Approved</span>' : '<span class="status-pending">⏳ Pending</span>') : '';
+      var earnedDisplay = approved ? fc(earned, job.cur) : '<span style="color:var(--muted);font-size:12px">— awaiting approval</span>';
+      var metaDisplay = approved ? fh(e.hours)+' worked &middot; '+fc(e.rate,job.cur)+'/hr' : fh(e.hours)+' worked';
       html += '<div class="ecard ' + jobCardClass(ji) + '" style="animation-delay:'+(i*0.04)+'s">';
-      html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+fc(earned,job.cur)+'</div></div>';
+      html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+earnedDisplay+'</div></div>';
       html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
-      html += '<div class="emeta">'+fh(e.hours)+' worked &middot; '+fc(e.rate,job.cur)+'/hr</div>';
+      html += '<div class="emeta">'+metaDisplay+(statusBadge?' &nbsp;'+statusBadge:'')+'</div>';
       html += '<div class="eactions"><button class="eact-btn" onclick="openEditEntry('+e.id+')">✏ Edit</button><button class="eact-btn danger" onclick="deleteEntry('+e.id+')">✕ Remove</button></div>';
       html += '</div>';
     });
@@ -1581,15 +1699,18 @@ function openLogSheet(preJobId) {
   populateJobSelect(jid);
   g('ls-date').value = today();
   var job = getJob(jid);
-  if (job && job.defRate) g('ls-rate').value = job.defRate;
+  // In team mode the admin assigns the rate — hide rate field for workers
+  var isTeamWorker = wjMode === 'team' && currentRole !== 'admin';
+  var rateRow = document.querySelector('#log-sheet .grid2');
+  if (rateRow) rateRow.style.display = isTeamWorker ? 'none' : '';
+  if (job && job.defRate && !isTeamWorker) g('ls-rate').value = job.defRate;
+  else if (isTeamWorker) g('ls-rate').value = '';
   g('ls-note').value = ''; g('ls-hours').value = '';
   g('log-sheet-title').textContent = 'Log a session';
   g('ls-cancel-btn').style.display = 'none';
   editEntryId = null;
   g('log-sheet').classList.add('open'); g('sheet-overlay').classList.add('open');
 }
-function closeLogSheet() { g('log-sheet').classList.remove('open'); g('sheet-overlay').classList.remove('open'); }
-
 function quickLog(jobId) { openLogSheet(jobId); }
 
 function populateJobSelect(selectedId) {
@@ -1613,26 +1734,29 @@ function updateRateLabel() {
 }
 
 function submitLog() {
+  // Handle personal user logging a team session
+  if (_personalTeamLogMode) { _submitPersonalTeamLog(); return; }
   var sel = g('ls-job');
   var jobId = sel ? (parseInt(sel.value)||sel.value) : null;
   // handle numeric or string ids
   var job = jobs.find(function(j){ return String(j.id)===String(jobId); });
   if (!job) return toast('Select a job.');
-  var date = g('ls-date').value, hours = parseFloat(g('ls-hours').value), rate = parseFloat(g('ls-rate').value), note = g('ls-note').value.trim();
+  var isTeamWorkerLog = wjMode === 'team' && currentRole !== 'admin';
+  var date = g('ls-date').value, hours = parseFloat(g('ls-hours').value), rate = isTeamWorkerLog ? 0 : parseFloat(g('ls-rate').value), note = g('ls-note').value.trim();
   if (!date) return toast('Please pick a date.');
   if (!hours || hours <= 0) return toast('Enter valid hours.');
-  if (!rate || rate <= 0) return toast('Enter a valid rate.');
+  if (!isTeamWorkerLog && (!rate || rate <= 0)) return toast('Enter a valid rate.');
   var prev = allTotals();
   if (editEntryId !== null) {
-    var updatedEntry = {id:editEntryId, jobId:job.id, date, hours, rate, note};
+    var updatedEntry = {id:editEntryId, jobId:job.id, date, hours, rate, note, status: isTeamWorkerLog ? 'pending' : undefined};
     entries = entries.map(function(e){ return String(e.id)===String(editEntryId) ? updatedEntry : e; });
     if (wjMode === 'team') syncEntryToFirestore(updatedEntry);
     editEntryId = null; toast('Session updated ✓');
   } else {
-    var newEntry = {id: Date.now(), jobId: job.id, date, hours, rate, note};
+    var newEntry = {id: Date.now(), jobId: job.id, date, hours, rate, note, status: isTeamWorkerLog ? 'pending' : undefined};
     entries.push(newEntry);
     if (wjMode === 'team') syncEntryToFirestore(newEntry);
-    toast('Session saved ✓');
+    toast(isTeamWorkerLog ? 'Session submitted — awaiting admin approval ✓' : 'Session saved ✓');
   }
   lastLoggedAt = Date.now();
   if (clearSessionsTimer) clearTimeout(clearSessionsTimer);
@@ -1641,6 +1765,31 @@ function submitLog() {
   var next = allTotals();
   setTimeout(function(){ checkMilestones(prev.hours, prev.earned, next.hours, next.earned); }, 700);
 }
+
+function _submitPersonalTeamLog() {
+  var sel = g('ls-job');
+  var jobId = sel ? sel.value : null;
+  var job = personalTeamJobs.find(function(j){ return String(j.id)===String(jobId); });
+  if (!job) return toast('Select a job.');
+  var date = g('ls-date').value, hours = parseFloat(g('ls-hours').value), note = g('ls-note').value.trim();
+  if (!date) return toast('Please pick a date.');
+  if (!hours || hours <= 0) return toast('Enter valid hours.');
+  var newEntry = {id: Date.now(), jobId: job.id, date: date, hours: hours, rate: 0, note: note, status: 'pending'};
+  personalTeamEntries.push(newEntry);
+  if (db && personalTeamData && currentUser) {
+    db.collection('teams').doc(personalTeamData.id).collection('entries').doc(String(newEntry.id)).set({
+      workerId: currentUser.uid, jobId: String(job.id), date: date, hours: hours, rate: 0,
+      note: note||'', status: 'pending', adminRate: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(e){ console.warn('team entry sync err', e); });
+  }
+  _personalTeamLogMode = false;
+  closeLogSheet();
+  renderMyTeamView();
+  toast('Session submitted — awaiting admin approval ✓');
+}
+
+function closeLogSheet() { _personalTeamLogMode = false; g('log-sheet').classList.remove('open'); g('sheet-overlay').classList.remove('open'); }
 
 function openEditEntry(id) {
   var e = entries.find(function(x){ return String(x.id)===String(id); }); if (!e) return;
@@ -1692,12 +1841,16 @@ function renderAllLogs() {
     html += '<div class="month-head">' + fmonth(mk+'-01') + '</div>';
     groups[mk].forEach(function(e){
       var job = getJob(e.jobId), ji = job ? jobIdx(e.jobId) : 0;
-      var earned = (Number(e.hours)||0) * (Number(e.rate)||0);
+      var approved = isApproved(e);
+      var earned = approved ? (Number(e.hours)||0) * (Number(e.rate)||0) : 0;
+      var earnedDisplay = approved ? fc(earned, job?job.cur:'$') : '<span style="color:var(--muted);font-size:12px">— awaiting approval</span>';
+      var statusBadge = wjMode === 'team' ? (approved ? ' <span class="status-approved">✓ Approved</span>' : ' <span class="status-pending">⏳ Pending</span>') : '';
+      var metaDisplay = approved ? fh(e.hours)+' &middot; '+fc(e.rate,job?job.cur:'$')+'/hr' : fh(e.hours)+' worked';
       html += '<div class="ecard ' + jobCardClass(ji) + '">';
-      html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+fc(earned,job?job.cur:'$')+'</div></div>';
+      html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned '+jobColor(ji)+'">'+earnedDisplay+'</div></div>';
       if (job) html += '<span class="ejob-tag '+jobTagClass(ji)+'">'+job.name+'</span>';
       html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
-      html += '<div class="emeta">'+fh(e.hours)+' &middot; '+fc(e.rate,job?job.cur:'$')+'/hr</div>';
+      html += '<div class="emeta">'+metaDisplay+statusBadge+'</div>';
       html += '<div class="eactions"><button class="eact-btn" onclick="editFromLogs('+e.id+')">✏ Edit</button><button class="eact-btn danger" onclick="delFromLogs('+e.id+')">✕ Remove</button></div>';
       html += '</div>';
     });
@@ -1797,6 +1950,15 @@ function updateDrawer() {
   // sign-out section (team mode only)
   var soSec = g('drawer-signout-section');
   if (soSec) soSec.style.display = wjMode === 'team' ? 'block' : 'none';
+  // My Team section (personal users who are also on a team)
+  var myTeamSec = g('drawer-my-team-section');
+  if (myTeamSec) {
+    myTeamSec.style.display = (wjMode === 'personal' && hasTeamMembership) ? 'block' : 'none';
+    if (hasTeamMembership && personalTeamData) {
+      var nameEl = g('drawer-my-team-name');
+      if (nameEl) nameEl.textContent = personalTeamData.name || 'My Team';
+    }
+  }
   // PIN sub-label
   var pinSub = g('pin-drawer-sub');
   if (pinSub) pinSub.textContent = localStorage.getItem('wj_pin') ? 'Enabled' : 'Not set';
@@ -1868,12 +2030,6 @@ function launchConfetti() {
   (function draw(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(function(p){ p.x+=p.vx;p.y+=p.vy;p.r+=p.vr; if(fr>70)p.op-=0.018; ctx.save();ctx.globalAlpha=Math.max(0,p.op);ctx.translate(p.x,p.y);ctx.rotate(p.r*Math.PI/180);ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore(); }); fr++; if(fr<150)requestAnimationFrame(draw); else ctx.clearRect(0,0,cv.width,cv.height); })();
 }
 
-/* ══ PWA ══ */
-window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferredPrompt=e; g('install-bar').classList.add('show'); });
-function installApp(){ if(!deferredPrompt)return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(function(){ deferredPrompt=null; g('install-bar').classList.remove('show'); }); }
-var isIos=/iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-if(isIos&&!window.navigator.standalone) g('ios-hint').classList.add('show');
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
 // wire up job select change
 document.addEventListener('change', function(e){ if(e.target&&e.target.id==='ls-job') updateRateLabel(); });
@@ -2115,8 +2271,17 @@ function skipUsername() {
 function handleAuthSuccess(user) {
   currentUser = user;
   if (wjMode === 'personal') {
-    // Personal mode — data lives in localStorage, no Firestore lookup needed
-    if (userName) { showApp(); } else { showScreen('screen-onboard'); }
+    // Check for cached team membership
+    if (personalTeamId) hasTeamMembership = true;
+    if (userName) {
+      showApp();
+      // If there's a pending team invite, offer to join
+      if (pendingJoinCode) {
+        setTimeout(function(){ _offerTeamJoin(pendingJoinCode); }, 600);
+      }
+    } else {
+      showScreen('screen-onboard');
+    }
     return;
   }
   db.collection('users').doc(user.uid).get()
@@ -2187,6 +2352,179 @@ function signOutUser() {
 }
 
 /* ══════════════════════════════════
+   ADMIN APPROVAL
+══════════════════════════════════ */
+function openApproveSheet(entryId) {
+  _pendingApproveEntryId = entryId;
+  var e = teamAllEntries.find(function(x){ return String(x.id) === String(entryId); });
+  if (!e) return;
+  var worker = teamMembers.find(function(m){ return m.uid === e.workerId; });
+  var jobObj = teamAllJobs.find(function(j){ return String(j.id) === String(e.jobId); });
+  var detail = g('approve-detail');
+  if (detail) {
+    detail.innerHTML =
+      '<strong>'+(worker?worker.name:'Worker')+'</strong> &mdash; '+(jobObj?jobObj.name:'Session')+'<br>'+
+      '<span style="color:var(--muted)">'+fd2(e.date)+' &middot; '+fh(e.hours)+' worked'+(e.note?' &middot; '+e.note:'')+'</span>';
+  }
+  g('approve-rate').value = '';
+  g('approve-error').textContent = '';
+  g('approve-sheet').classList.add('open');
+  g('approve-overlay').classList.add('open');
+}
+function closeApproveSheet() {
+  g('approve-sheet').classList.remove('open');
+  g('approve-overlay').classList.remove('open');
+}
+function confirmApprove() {
+  var rate = parseFloat(g('approve-rate').value);
+  if (!rate || rate <= 0) { g('approve-error').textContent = 'Enter a valid rate.'; return; }
+  var entryId = _pendingApproveEntryId;
+  var btn = g('approve-sheet').querySelector('.btn-save');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+  db.collection('teams').doc(currentTeam.id).collection('entries').doc(String(entryId)).update({
+    status: 'approved', rate: rate, adminRate: rate,
+    approvedBy: currentUser.uid,
+    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    teamAllEntries = teamAllEntries.map(function(e){
+      return String(e.id) === String(entryId) ? Object.assign({}, e, {status:'approved', rate:rate, adminRate:rate}) : e;
+    });
+    closeApproveSheet();
+    renderAdminDashboard();
+    toast('Session approved ✓');
+  }).catch(function(err){
+    g('approve-error').textContent = err.message;
+    if (btn) { btn.textContent = 'Approve & Save'; btn.disabled = false; }
+  });
+}
+
+/* ══════════════════════════════════
+   MY TEAM (personal users in a team)
+══════════════════════════════════ */
+var _pendingJoinTeamCode = null;
+
+function _offerTeamJoin(code) {
+  _pendingJoinTeamCode = code;
+  db.collection('teams').where('inviteCode','==',code.toUpperCase()).limit(1).get()
+    .then(function(snap) {
+      if (snap.empty) { localStorage.removeItem('wj_pending_join'); return; }
+      var tname = snap.docs[0].data().name || 'a team';
+      var nameEl = g('team-join-team-name');
+      if (nameEl) nameEl.textContent = tname;
+      g('team-join-sheet').classList.add('open');
+      g('team-join-overlay').classList.add('open');
+    }).catch(function(){});
+}
+function dismissTeamJoinOffer() {
+  g('team-join-sheet').classList.remove('open');
+  g('team-join-overlay').classList.remove('open');
+  localStorage.removeItem('wj_pending_join');
+  pendingJoinCode = null;
+}
+function acceptTeamJoinOffer() {
+  g('team-join-sheet').classList.remove('open');
+  g('team-join-overlay').classList.remove('open');
+  var code = _pendingJoinTeamCode;
+  if (!code) return;
+  joinTeamByCode(code, userName || currentUserName || 'User');
+}
+
+function openMyTeam() {
+  closeDrawer();
+  var panel = g('panel-my-team');
+  if (panel) panel.classList.add('open');
+  if (!personalTeamData) {
+    loadPersonalTeamData(renderMyTeamView);
+  } else {
+    renderMyTeamView();
+  }
+}
+function closeMyTeam() {
+  var panel = g('panel-my-team');
+  if (panel) panel.classList.remove('open');
+}
+
+function loadPersonalTeamData(callback) {
+  var tid = personalTeamId;
+  if (!tid || !db || !currentUser) return;
+  var uid = currentUser.uid;
+  g('my-team-content').innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">Loading…</div>';
+  Promise.all([
+    db.collection('teams').doc(tid).get(),
+    db.collection('teams').doc(tid).collection('jobs').get(),
+    db.collection('teams').doc(tid).collection('entries').where('workerId','==',uid).get()
+  ]).then(function(results) {
+    if (!results[0].exists) { toast('Team not found.'); return; }
+    personalTeamData = Object.assign({id: results[0].id}, results[0].data());
+    personalTeamJobs = results[1].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    personalTeamEntries = results[2].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    var titleEl = g('my-team-title');
+    if (titleEl) titleEl.textContent = personalTeamData.name || 'My Team';
+    if (callback) callback();
+  }).catch(function(err){ toast('Error loading team data.'); console.error(err); });
+}
+
+function renderMyTeamView() {
+  var content = g('my-team-content');
+  if (!content) return;
+  if (!personalTeamEntries.length) {
+    content.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--muted);font-size:14px">No team sessions yet.<br><br><span style="font-size:12px">Tap "Log team session" below to submit your first session for approval.</span></div>';
+    return;
+  }
+  var sorted = [].concat(personalTeamEntries).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var groups = {}, order = [];
+  sorted.forEach(function(e){
+    var mk = (e.date||'0000-00').slice(0,7);
+    if (!groups[mk]) { groups[mk]=[]; order.push(mk); }
+    groups[mk].push(e);
+  });
+  var html = '';
+  order.forEach(function(mk){
+    html += '<div class="month-head">'+fmonth(mk+'-01')+'</div>';
+    groups[mk].forEach(function(e){
+      var approved = isApproved(e);
+      var jobObj = personalTeamJobs.find(function(j){ return String(j.id)===String(e.jobId); });
+      var earned = approved ? (Number(e.hours)||0)*(Number(e.rate)||0) : 0;
+      var earnedStr = approved ? fc(earned, jobObj?jobObj.cur:'$') : '<span style="color:var(--muted);font-size:12px">— awaiting approval</span>';
+      var badge = approved ? '<span class="status-approved">✓ Approved</span>' : '<span class="status-pending">⏳ Pending</span>';
+      html += '<div class="ecard ecard-a">';
+      html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned">'+earnedStr+'</div></div>';
+      if (jobObj) html += '<span class="ejob-tag">'+jobObj.name+'</span>';
+      html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
+      html += '<div class="emeta">'+fh(e.hours)+' worked &nbsp;'+badge+'</div>';
+      html += '</div>';
+    });
+  });
+  content.innerHTML = html;
+}
+
+var _personalTeamLogMode = false; // flag: personal user logging a team session
+
+function openTeamLogSheet() {
+  if (!personalTeamData) return toast('Team data not loaded yet.');
+  if (!personalTeamJobs.length) {
+    toast('No team jobs set up. Add a job for this team first.');
+    return;
+  }
+  _personalTeamLogMode = true;
+  // Populate sheet with team jobs
+  var sel = g('ls-job'); sel.innerHTML = '';
+  personalTeamJobs.forEach(function(job) {
+    var opt = document.createElement('option');
+    opt.value = job.id; opt.textContent = job.name;
+    sel.appendChild(opt);
+  });
+  g('ls-date').value = today();
+  g('ls-hours').value = ''; g('ls-note').value = ''; g('ls-rate').value = '';
+  var rateRow = document.querySelector('#log-sheet .grid2');
+  if (rateRow) rateRow.style.display = 'none'; // admin assigns rate
+  g('log-sheet-title').textContent = 'Log team session';
+  g('ls-cancel-btn').style.display = 'none';
+  editEntryId = null;
+  g('log-sheet').classList.add('open'); g('sheet-overlay').classList.add('open');
+}
+
+/* ══════════════════════════════════
    TEAM CREATION
 ══════════════════════════════════ */
 function createTeam() {
@@ -2234,18 +2572,33 @@ function joinTeamByCode(code, memberName) {
           name: memberName, role: 'worker',
           joinedAt: firebase.firestore.FieldValue.serverTimestamp()
         }),
-        db.collection('users').doc(uid).update({teamId: teamDoc.id})
+        db.collection('users').doc(uid).set({teamId: teamDoc.id}, {merge: true})
       ]);
     })
     .then(function() {
       currentRole = 'worker';
       pendingJoinCode = null;
-      loadWorkerData();
+      localStorage.removeItem('wj_pending_join');
+      if (wjMode === 'personal') {
+        // Personal user joining a team — stay in personal mode, show My Team section
+        personalTeamId = currentTeam.id;
+        localStorage.setItem('wj_team_id', currentTeam.id);
+        hasTeamMembership = true;
+        updateDrawer();
+        toast('Joined ' + (currentTeam.name||'team') + '! Find it in the drawer under "My Team".');
+      } else {
+        loadWorkerData();
+      }
     })
     .catch(function(err) {
-      g('auth-error').textContent = authErrMsg(err.code);
-      var btn = g('auth-submit-btn');
-      btn.textContent = 'Create account'; btn.disabled = false;
+      if (wjMode === 'personal') {
+        toast('Could not join team: ' + (err.message||'Invalid code'));
+      } else {
+        var errEl = g('auth-error');
+        if (errEl) errEl.textContent = authErrMsg(err.code);
+        var btn = g('auth-submit-btn');
+        if (btn) { btn.textContent = 'Create account'; btn.disabled = false; }
+      }
     });
 }
 
@@ -2283,7 +2636,7 @@ function deleteJobFirestore(jobId) {
 }
 function syncEntryToFirestore(entry) {
   if (!db || !currentTeam || !currentUser) return;
-  var data = {workerId:currentUser.uid, jobId:String(entry.jobId), date:entry.date, hours:entry.hours, rate:entry.rate, note:entry.note||'', createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  var data = {workerId:currentUser.uid, jobId:String(entry.jobId), date:entry.date, hours:entry.hours, rate:entry.rate||0, note:entry.note||'', status:entry.status||'pending', adminRate:0, createdAt:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('teams').doc(currentTeam.id).collection('entries').doc(String(entry.id)).set(data).catch(function(e){console.warn('entry sync err',e);});
 }
 function deleteEntryFirestore(entryId) {
@@ -2312,6 +2665,9 @@ function loadAdminData() {
     teamMembers = results[0].docs.map(function(d){ return Object.assign({uid:d.id},d.data()); });
     teamAllEntries = results[1].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
     teamAllJobs = results[2].docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+    // Populate admin's own jobs so they can log their own sessions
+    jobs = teamAllJobs.filter(function(j){ return j.ownerId === currentUser.uid; });
+    if (!activeJobId && jobs.length > 0) activeJobId = jobs[0].id;
     renderAdminDashboard();
   })
   .catch(function(err) {
@@ -2349,6 +2705,26 @@ function renderAdminDashboard() {
   html += '<div class="admin-stat"><div class="admin-stat-val">'+filtered.length+'</div><div class="admin-stat-lbl">Sessions</div></div>';
   html += '</div></div>';
 
+  // Pending approvals section
+  var pending = filtered.filter(function(e){ return e.status === 'pending'; });
+  if (pending.length > 0) {
+    html += '<div class="pending-section">';
+    html += '<div style="font-size:10px;color:rgba(245,166,35,0.8);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px">⏳ Pending Approvals ('+pending.length+')</div>';
+    pending.forEach(function(e) {
+      var worker = teamMembers.find(function(m){ return m.uid === e.workerId; });
+      var workerName = worker ? (worker.name||'Worker') : 'Unknown';
+      var jobName = (teamAllJobs.find(function(j){ return String(j.id)===String(e.jobId); })||{}).name || 'Session';
+      html += '<div class="pending-item">';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:13px;font-weight:500;color:var(--text)">'+workerName+' &mdash; '+jobName+'</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+fd2(e.date)+' &middot; '+fh(e.hours)+' worked'+(e.note?' &middot; '+e.note:'')+'</div>';
+      html += '</div>';
+      html += '<button class="pending-approve-btn" onclick="openApproveSheet(\''+e.id+'\')">Approve →</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
   if (workers.length === 0) {
     html += '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:14px">No workers yet.<br><br><span style="color:var(--gold);cursor:pointer" onclick="showInvite()">Tap "Invite worker" to add your crew →</span></div>';
   } else {
@@ -2384,19 +2760,47 @@ function setAdminPeriod(p) {
 function openWorkerDetail(uid) {
   var member = teamMembers.find(function(m){ return m.uid === uid; });
   if (!member) return;
+  _currentWorkerDetailUid = uid;
+  workerDetailPeriod = 'all';
+  workerDetailCustomFrom = '';
+  workerDetailCustomTo = '';
+  // Reset period tabs
+  var tabs = g('wd-period-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
+    tabs.querySelector('button').classList.add('active'); // 'All' is first
+  }
+  g('wd-custom-range').style.display = 'none';
   g('worker-detail-name').textContent = member.name || 'Worker';
-  var memberEntries = [].concat(teamAllEntries).filter(function(e){ return e.workerId === uid; })
+  renderWorkerDetail();
+  g('panel-worker-detail').classList.add('open');
+}
+function closeWorkerDetail() { g('panel-worker-detail').classList.remove('open'); }
+
+function renderWorkerDetail() {
+  if (!_currentWorkerDetailUid) return;
+  var allMemberEntries = [].concat(teamAllEntries)
+    .filter(function(e){ return e.workerId === _currentWorkerDetailUid; })
     .sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var memberEntries;
+  if (workerDetailPeriod === 'custom') {
+    var from = workerDetailCustomFrom, to = workerDetailCustomTo;
+    memberEntries = (!from || !to) ? allMemberEntries : allMemberEntries.filter(function(e){ return e.date >= from && e.date <= to; });
+  } else {
+    memberEntries = filterEntriesByPeriod(allMemberEntries, workerDetailPeriod);
+  }
   g('worker-detail-badge').textContent = memberEntries.length + ' session' + (memberEntries.length!==1?'s':'');
   var html = '';
   if (!memberEntries.length) {
-    html = '<div style="text-align:center;padding:60px 20px;color:var(--muted);font-size:14px">No sessions yet.</div>';
+    html = '<div style="text-align:center;padding:60px 20px;color:var(--muted);font-size:14px">No sessions for this period.</div>';
   } else {
     var totalHours = memberEntries.reduce(function(s,e){ return s+(Number(e.hours)||0); },0);
     var totalEarned = memberEntries.reduce(function(s,e){ return s+(Number(e.hours)||0)*(Number(e.rate)||0); },0);
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">';
-    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:14px;text-align:center"><div style="font-family:var(--serif);font-size:22px;color:var(--gold-light)">'+fh(totalHours)+'</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Total hours</div></div>';
-    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:14px;text-align:center"><div style="font-family:var(--serif);font-size:22px;color:var(--gold-light)">$'+totalEarned.toFixed(2)+'</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Total owed</div></div>';
+    var avgRate = totalHours > 0 ? totalEarned / totalHours : 0;
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">';
+    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center"><div style="font-family:var(--serif);font-size:20px;color:var(--gold-light)">'+fh(totalHours)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Hours</div></div>';
+    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center"><div style="font-family:var(--serif);font-size:20px;color:var(--gold-light)">$'+totalEarned.toFixed(0)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Earned</div></div>';
+    html += '<div style="background:var(--surface2);border-radius:var(--radius);padding:12px;text-align:center"><div style="font-family:var(--serif);font-size:20px;color:var(--gold-light)">$'+avgRate.toFixed(0)+'/hr</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Avg rate</div></div>';
     html += '</div>';
     var groups = {}, order = [];
     memberEntries.forEach(function(e){
@@ -2407,21 +2811,44 @@ function openWorkerDetail(uid) {
     order.forEach(function(mk) {
       html += '<div class="month-head">'+fmonth(mk+'-01')+'</div>';
       groups[mk].forEach(function(e) {
+        var approved = e.status === 'approved' || !e.status;
         var earned = (Number(e.hours)||0)*(Number(e.rate)||0);
         var job = teamAllJobs.find(function(j){ return String(j.id)===String(e.jobId); });
+        var statusBadge = approved ? '<span class="status-approved">✓ Approved</span>' : '<span class="status-pending">⏳ Pending</span>';
         html += '<div class="ecard jc-0">';
-        html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned ec-0">$'+earned.toFixed(2)+'</div></div>';
-        if (job) html += '<span class="ejob-tag jt-0">'+job.name+'</span>';
+        html += '<div class="etop"><div class="edate-wrap"><span class="eday">'+fday(e.date)+'</span><span class="edate-txt">'+fd2(e.date)+'</span></div><div class="eearned ec-0">'+(approved?'$'+earned.toFixed(2):'—')+'</div></div>';
+        if (job) html += '<span class="ejob-tag jt-0">'+job.name+'</span> ';
+        html += statusBadge;
         html += '<div class="enote">'+(e.note||'<span style="color:var(--muted)">No note</span>')+'</div>';
-        html += '<div class="emeta">'+fh(e.hours)+' &middot; $'+Number(e.rate).toFixed(2)+'/hr</div>';
+        html += '<div class="emeta">'+fh(e.hours)+(approved?' &middot; $'+Number(e.rate).toFixed(2)+'/hr':'')+'</div>';
         html += '</div>';
       });
     });
   }
   g('worker-detail-body').innerHTML = html;
-  g('panel-worker-detail').classList.add('open');
 }
-function closeWorkerDetail() { g('panel-worker-detail').classList.remove('open'); }
+
+function setWorkerDetailPeriod(p) {
+  workerDetailPeriod = p;
+  var tabs = g('wd-period-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
+    var map = {all:0, month:1, week:2, custom:3};
+    var btn = tabs.querySelectorAll('button')[map[p]];
+    if (btn) btn.classList.add('active');
+  }
+  g('wd-custom-range').style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') renderWorkerDetail();
+}
+
+function applyWorkerDetailCustomRange() {
+  var from = g('wd-from').value, to = g('wd-to').value;
+  if (!from || !to) { toast('Select both start and end dates.'); return; }
+  if (from > to) { toast('Start date must be before end date.'); return; }
+  workerDetailCustomFrom = from;
+  workerDetailCustomTo = to;
+  renderWorkerDetail();
+}
 
 /* ══════════════════════════════════
    INVITE MODAL
