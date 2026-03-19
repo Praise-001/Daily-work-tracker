@@ -375,6 +375,7 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
 .admin-job-name{font-size:15px;font-weight:500;}
 .admin-job-rate{font-size:12px;color:var(--muted);margin-top:2px;}
 .admin-job-del{font-size:12px;color:var(--red);background:none;border:none;cursor:pointer;padding:8px 4px;font-family:var(--font);}
+.admin-job-edit{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;padding:8px 8px 8px 4px;font-family:var(--font);}
 
 /* ── CONVERT BUTTON ── */
 .convert-btn{background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3);border-radius:99px;padding:5px 14px;font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;margin-bottom:8px;transition:background 0.15s;display:inline-block;}
@@ -844,6 +845,30 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
   <button class="ob-btn" onclick="openAddJobFromAdmin()">+ Add New Job</button>
 </div>
 
+<!-- ══ EDIT TEAM JOB SHEET ══ -->
+<div class="sheet-overlay" id="edit-team-job-overlay" onclick="closeEditTeamJobSheet()"></div>
+<div class="sheet" id="edit-team-job-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Edit Job</div>
+  <input type="hidden" id="etj-id">
+  <div class="field"><label>Job title</label><input type="text" id="etj-name" placeholder="e.g. Night Shift"></div>
+  <div class="field">
+    <label>Currency</label>
+    <select id="etj-cur-sel" onchange="onCurSel('etj-cur-sel','etj-cur','etj-curcode','etj-cur-custom')"></select>
+    <input type="hidden" id="etj-cur" value="$">
+    <input type="hidden" id="etj-curcode" value="USD">
+  </div>
+  <div id="etj-cur-custom" style="display:none;margin-top:-4px">
+    <div class="grid2">
+      <div class="field"><label>Symbol</label><input type="text" id="etj-cur-sym" placeholder="e.g. ₦" maxlength="4" oninput="g('etj-cur').value=this.value"></div>
+      <div class="field"><label>Code</label><input type="text" id="etj-curcode-txt" placeholder="e.g. NGN" maxlength="3" oninput="g('etj-curcode').value=this.value.toUpperCase()"></div>
+    </div>
+  </div>
+  <div class="field"><label>Default rate/hr</label><input type="number" id="etj-rate" placeholder="20" inputmode="decimal"></div>
+  <button class="btn-save" onclick="saveEditTeamJob()">Save changes</button>
+  <button class="btn-cancel" onclick="closeEditTeamJobSheet()" style="margin-top:8px">Cancel</button>
+</div>
+
 <!-- ══ SIGN OUT CONFIRM ══ -->
 <div class="sheet-overlay" id="signout-overlay" onclick="closeSignOutConfirm()"></div>
 <div class="sheet" id="signout-sheet">
@@ -865,7 +890,7 @@ body.light .google-btn{background:#fff;border-color:rgba(0,0,0,0.15);}
   <div class="field"><label>Date</label><input type="date" id="ls-date"></div>
   <div class="grid2">
     <div class="field"><label>Hours worked</label><input type="number" id="ls-hours" placeholder="e.g. 7.5" min="0" step="0.5" inputmode="decimal"></div>
-    <div class="field"><label>Rate (<span id="ls-cur-label">$</span>/hr)</label><input type="number" id="ls-rate" placeholder="25" min="0" inputmode="decimal"></div>
+    <div class="field" id="ls-rate-field"><label>Rate (<span id="ls-cur-label">$</span>/hr)</label><input type="number" id="ls-rate" placeholder="25" min="0" inputmode="decimal"></div>
   </div>
   <div class="field"><label>Note (optional)</label><input type="text" id="ls-note" placeholder="What did you work on?"></div>
   <button class="btn-save" onclick="submitLog()">Save session</button>
@@ -1220,7 +1245,7 @@ function onCurSel(selId, symHiddenId, codeHiddenId, customDivId) {
 function initCurSelects() {
   var opts = CURRENCY_LIST.map(function(c){ return '<option value="'+c.code+'">'+c.sym+' \u2014 '+c.label+' ('+c.code+')</option>'; }).join('');
   var optsCustom = opts + '<option value="CUSTOM">Other / Custom\u2026</option>';
-  ['ob-cur1-sel','ob-cur2-sel','aj-cur-sel','ej-cur-sel'].forEach(function(id){ var el=g(id); if(el) el.innerHTML=optsCustom; });
+  ['ob-cur1-sel','ob-cur2-sel','aj-cur-sel','ej-cur-sel','etj-cur-sel'].forEach(function(id){ var el=g(id); if(el) el.innerHTML=optsCustom; });
   var pcp = g('pcp-select'); if (pcp) pcp.innerHTML = opts;
 }
 
@@ -1724,8 +1749,8 @@ function openLogSheet(preJobId) {
   var job = getJob(jid);
   // In team mode the admin assigns the rate — hide rate field for workers
   var isTeamWorker = wjMode === 'team' && currentRole !== 'admin';
-  var rateRow = document.querySelector('#log-sheet .grid2');
-  if (rateRow) rateRow.style.display = isTeamWorker ? 'none' : '';
+  var rateField = g('ls-rate-field');
+  if (rateField) rateField.style.display = isTeamWorker ? 'none' : '';
   if (job && job.defRate && !isTeamWorker) g('ls-rate').value = job.defRate;
   else if (isTeamWorker) g('ls-rate').value = '';
   g('ls-note').value = ''; g('ls-hours').value = '';
@@ -1812,7 +1837,11 @@ function _submitPersonalTeamLog() {
   toast('Session submitted — awaiting admin approval ✓');
 }
 
-function closeLogSheet() { _personalTeamLogMode = false; g('log-sheet').classList.remove('open'); g('sheet-overlay').classList.remove('open'); }
+function closeLogSheet() {
+  _personalTeamLogMode = false;
+  var rf = g('ls-rate-field'); if (rf) rf.style.display = '';
+  g('log-sheet').classList.remove('open'); g('sheet-overlay').classList.remove('open');
+}
 
 function openEditEntry(id) {
   var e = entries.find(function(x){ return String(x.id)===String(id); }); if (!e) return;
@@ -2538,8 +2567,8 @@ function openTeamLogSheet() {
   });
   g('ls-date').value = today();
   g('ls-hours').value = ''; g('ls-note').value = ''; g('ls-rate').value = '';
-  var rateRow = document.querySelector('#log-sheet .grid2');
-  if (rateRow) rateRow.style.display = 'none'; // admin assigns rate
+  var rateField = g('ls-rate-field');
+  if (rateField) rateField.style.display = 'none'; // admin assigns rate on approval
   g('log-sheet-title').textContent = 'Log team session';
   g('ls-cancel-btn').style.display = 'none';
   editEntryId = null;
@@ -2925,6 +2954,7 @@ function renderAdminJobsList() {
     html += '<div class="admin-job-info"><div class="admin-job-name">' + job.name + '</div>';
     if (job.defRate) html += '<div class="admin-job-rate">' + (job.cur||'$') + job.defRate + '/hr default</div>';
     html += '</div>';
+    html += '<button class="admin-job-edit" onclick="openEditTeamJob(\'' + String(job.id) + '\')">Edit</button>';
     html += '<button class="admin-job-del" onclick="deleteTeamJob(\'' + String(job.id) + '\')">Remove</button>';
     html += '</div>';
   });
@@ -2944,6 +2974,54 @@ function deleteTeamJob(jobId) {
   }
   renderAdminJobsList();
   toast('Job removed.');
+}
+function openEditTeamJob(jobId) {
+  var job = teamAllJobs.find(function(j){ return String(j.id) === String(jobId); });
+  if (!job) return;
+  closeAdminJobsSheet();
+  g('etj-id').value = String(job.id);
+  g('etj-name').value = job.name || '';
+  g('etj-rate').value = job.defRate || '';
+  var curCode = job.curCode || 'USD';
+  var sel = g('etj-cur-sel');
+  var matched = false;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === curCode) { sel.selectedIndex = i; matched = true; break; }
+  }
+  if (matched) {
+    g('etj-cur-custom').style.display = 'none';
+  } else {
+    sel.value = 'CUSTOM';
+    g('etj-cur-custom').style.display = 'block';
+    g('etj-cur-sym').value = job.cur || '';
+    g('etj-curcode-txt').value = curCode;
+  }
+  g('etj-cur').value = job.cur || '$';
+  g('etj-curcode').value = curCode;
+  g('edit-team-job-overlay').classList.add('open');
+  g('edit-team-job-sheet').classList.add('open');
+}
+function closeEditTeamJobSheet() {
+  g('edit-team-job-overlay').classList.remove('open');
+  g('edit-team-job-sheet').classList.remove('open');
+}
+function saveEditTeamJob() {
+  var jobId = g('etj-id').value;
+  var name = g('etj-name').value.trim();
+  if (!name) return toast('Enter a job name.');
+  var cur = g('etj-cur').value.trim() || '$';
+  var curCode = g('etj-curcode').value.trim().toUpperCase() || symToCode(cur);
+  var rate = g('etj-rate').value.trim();
+  var job = teamAllJobs.find(function(j){ return String(j.id) === String(jobId); });
+  if (!job) return;
+  job.name = name; job.cur = cur; job.curCode = curCode; job.defRate = rate;
+  if (db && currentTeam) {
+    db.collection('teams').doc(currentTeam.id).collection('jobs').doc(String(jobId)).update({
+      name: name, cur: cur, curCode: curCode, defRate: rate
+    }).catch(function(e){ console.warn('update job err', e); });
+  }
+  closeEditTeamJobSheet();
+  toast(name + ' updated \u2713');
 }
 function toggleThemeFromAdmin() {
   closeAdminMenu();
