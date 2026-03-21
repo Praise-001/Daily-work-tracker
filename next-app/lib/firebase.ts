@@ -6,6 +6,8 @@ import {
   GoogleAuthProvider,
   setPersistence,
   signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut
 } from "firebase/auth";
 import {
@@ -34,4 +36,4 @@ const auth = getAuth(app);
 setPersistence(auth, browserSessionPersistence);
 const provider = new GoogleAuthProvider();
 
-export { app, db, auth, provider, signInWithPopup, signOut, connectFirestoreEmulator };
+export { app, db, auth, provider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, connectFirestoreEmulator };

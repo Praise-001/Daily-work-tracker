@@ -1,0 +1,470 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import AuthGuard from "../../components/AuthGuard";
+import Drawer from "../../components/Drawer";
+import EarningsCard from "../../components/EarningsCard";
+import JobDetailPanel from "../../components/JobDetailPanel";
+import SettingsPopover, { GearButton } from "../../components/SettingsPopover";
+import { useAuth } from "../../lib/AuthContext";
+import {
+  subscribeUserJobs,
+  subscribeUserEntries,
+  subscribeTeamJobs,
+  createEntry,
+  createJob,
+} from "../../lib/firestoreService";
+import { getCurrencyByCode } from "../../lib/currencies";
+import { formatDate, formatAmount, sanitizeText } from "../../lib/utils";
+import type { Job, Entry } from "../../lib/types";
+import CurrencyPicker from "../../components/CurrencyPicker";
+import RateTypeToggle from "../../components/RateTypeToggle";
+import type { RateType } from "../../lib/types";
+
+type Tab = "overview" | "sessions" | "myteam";
+
+function HamburgerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  );
+}
+
+function AddJobModal({ onClose, ownerUid }: { onClose: () => void; ownerUid: string }) {
+  const [name, setName] = useState("");
+  const [cur, setCur] = useState("USD");
+  const [rateType, setRateType] = useState<RateType>("hour");
+  const [defRate, setDefRate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setError("Job name required."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const currency = getCurrencyByCode(cur);
+      const jobData: Parameters<typeof createJob>[0] = {
+        name: sanitizeText(name, 60),
+        cur: currency.code,
+        curSymbol: currency.symbol,
+        rateType,
+        ownerUid,
+      };
+      if (defRate) jobData.defRate = parseFloat(defRate);
+      await createJob(jobData);
+      onClose();
+    } catch {
+      setError("Failed to add job. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 400, display: "flex", alignItems: "flex-end" }}>
+      <div style={{ width: "100%", background: "var(--surface)", borderRadius: "var(--radius-xl) var(--radius-xl) 0 0", padding: "24px 20px 40px", maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h3 style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 400 }}>Add a Job</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        {error && <div className="message message-error">{error}</div>}
+        <form className="form" onSubmit={handleSubmit}>
+          <div className="field"><label>Job Name</label>
+            <input type="text" placeholder="e.g. Freelance Writing" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus />
+          </div>
+          <div className="field"><label>Currency</label>
+            <CurrencyPicker value={cur} onChange={setCur} />
+          </div>
+          <div className="field"><label>Pay Rate</label>
+            <RateTypeToggle value={rateType} onChange={setRateType} />
+          </div>
+          <div className="field"><label>Default Rate (optional)</label>
+            <input type="number" placeholder="Amount" value={defRate} onChange={(e) => setDefRate(e.target.value)} min="0" step="0.01" />
+          </div>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>{saving ? "Saving…" : "Add Job"}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
+  job: Job;
+  workerUid: string;
+  workerName: string;
+  onClose: () => void;
+}) {
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [hours, setHours] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const hrs = parseFloat(hours);
+    if (isNaN(hrs) || hrs <= 0) { setError("Enter valid hours."); return; }
+    setError("");
+    setSaving(true);
+    try {
+      const entryData: Parameters<typeof createEntry>[0] = {
+        jobId: job.id,
+        teamId: job.teamId!,
+        date,
+        hours: hrs,
+        status: "pending",
+        workerUid,
+        workerName,
+      };
+      if (note.trim()) entryData.note = sanitizeText(note, 300);
+      await createEntry(entryData);
+      setSuccess(true);
+      setTimeout(onClose, 1400);
+    } catch {
+      setError("Failed to log session. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 400, display: "flex", alignItems: "flex-end" }}>
+      <div style={{ width: "100%", background: "var(--surface)", borderRadius: "var(--radius-xl) var(--radius-xl) 0 0", padding: "24px 20px 40px", maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div>
+            <h3 style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 400 }}>Log Session</h3>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>{job.name}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {error && <div className="message message-error" style={{ marginTop: 12 }}>{error}</div>}
+        {success && (
+          <div className="message" style={{ marginTop: 12, background: "rgba(61,186,126,0.12)", border: "1px solid rgba(61,186,126,0.25)", color: "#3dba7e" }}>
+            Session submitted for approval!
+          </div>
+        )}
+
+        {!success && (
+          <form className="form" style={{ marginTop: 16 }} onSubmit={handleSubmit}>
+            <div className="field"><label>Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </div>
+            <div className="field"><label>Hours Worked</label>
+              <input type="number" placeholder="e.g. 4.5" value={hours} onChange={(e) => setHours(e.target.value)} min="0.1" step="0.1" required autoFocus />
+            </div>
+            <div className="field"><label>Note (optional)</label>
+              <textarea placeholder="What did you work on?" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
+            </div>
+            <div style={{ padding: "10px 14px", background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: "var(--radius)", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>
+              Your rate will be set by the team admin when they approve this session.
+            </div>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
+              {saving ? "Submitting…" : "Submit for Approval"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DashboardInner() {
+  const { user, userProfile, refreshProfile } = useAuth();
+  const router = useRouter();
+
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [teamJobs, setTeamJobs] = useState<Job[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [earningsHidden, setEarningsHidden] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobPanelOpen, setJobPanelOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addJobOpen, setAddJobOpen] = useState(false);
+  const [logTeamJob, setLogTeamJob] = useState<Job | null>(null);
+
+  const hasTeam = (userProfile?.joinedTeams?.length ?? 0) > 0;
+  const name = userProfile?.name ?? "";
+  const initial = name ? name.charAt(0).toUpperCase() : "R";
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubJobs = subscribeUserJobs(user.uid, setJobs);
+    const unsubEntries = subscribeUserEntries(user.uid, setEntries);
+    return () => { unsubJobs(); unsubEntries(); };
+  }, [user]);
+
+  // Subscribe to team jobs for each joined team
+  useEffect(() => {
+    const teamIds = userProfile?.joinedTeams ?? [];
+    if (!teamIds.length) { setTeamJobs([]); return; }
+    const jobsByTeam = new Map<string, Job[]>();
+    const unsubs = teamIds.map((tid) =>
+      subscribeTeamJobs(tid, (tjobs) => {
+        jobsByTeam.set(tid, tjobs);
+        const merged: Job[] = [];
+        jobsByTeam.forEach((j) => merged.push(...j));
+        setTeamJobs(merged);
+      })
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [userProfile]);
+
+  function openJob(job: Job) {
+    setSelectedJob(job);
+    setJobPanelOpen(true);
+    setDrawerOpen(false);
+  }
+
+  function handleSignOut() {
+    refreshProfile().catch(() => {});
+    router.replace("/");
+  }
+
+  const personalEntries = entries.filter((e) => !e.teamId);
+  const teamEntries = entries.filter((e) => !!e.teamId);
+
+  return (
+    <div className="dash-shell">
+      {/* Drawer */}
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <div className="drawer-header">
+          <div className="drawer-avatar">{initial}</div>
+          <div>
+            <div className="drawer-user-name">{name}</div>
+            <div className="drawer-user-email">{user?.email}</div>
+          </div>
+        </div>
+        <nav className="drawer-nav">
+          {([
+            "overview",
+            "sessions",
+            ...(hasTeam ? ["myteam"] : []),
+          ] as Tab[]).map((t) => (
+            <button
+              key={t}
+              className={`drawer-nav-item${tab === t ? " active" : ""}`}
+              onClick={() => { setTab(t); setDrawerOpen(false); }}
+            >
+              {t === "overview" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>}
+              {t === "sessions" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
+              {t === "myteam" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+              {t === "overview" ? "Overview" : t === "sessions" ? "Sessions" : "My Team"}
+            </button>
+          ))}
+        </nav>
+        <div className="drawer-footer">
+          <button className="drawer-add-job" onClick={() => { setAddJobOpen(true); setDrawerOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Job
+          </button>
+        </div>
+      </Drawer>
+
+      {/* Top bar */}
+      <div className="top-bar">
+        <button className="hamburger-btn" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
+          <HamburgerIcon />
+        </button>
+        <div className="top-bar-greeting">Hey, <span>{name}</span></div>
+        <div style={{ position: "relative" }}>
+          <GearButton onClick={() => setSettingsOpen((v) => !v)} />
+          <SettingsPopover open={settingsOpen} onClose={() => setSettingsOpen(false)} onSignOut={handleSignOut} />
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="dash-tabs">
+        <button className={`dash-tab${tab === "overview" ? " active" : ""}`} onClick={() => setTab("overview")}>Overview</button>
+        <button className={`dash-tab${tab === "sessions" ? " active" : ""}`} onClick={() => setTab("sessions")}>Sessions</button>
+        {hasTeam && <button className={`dash-tab${tab === "myteam" ? " active" : ""}`} onClick={() => setTab("myteam")}>My Team</button>}
+      </div>
+
+      {/* Tab content */}
+      <div className="dash-content">
+        {tab === "overview" && (
+          <>
+            <EarningsCard
+              jobs={jobs}
+              entries={personalEntries}
+              hidden={earningsHidden}
+              onToggleHidden={() => setEarningsHidden((v) => !v)}
+            />
+            <div className="page-content" style={{ paddingTop: 0 }}>
+              <div className="section-header">
+                <h3>Your Jobs</h3>
+                <button className="btn-add-small" onClick={() => setAddJobOpen(true)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add
+                </button>
+              </div>
+              {jobs.length === 0 ? (
+                <div className="empty-state"><p>No jobs yet. Add a job to start tracking.</p></div>
+              ) : (
+                <div className="job-grid">
+                  {jobs.map((job) => {
+                    const jobEntries = personalEntries.filter((e) => e.jobId === job.id && e.status === "approved");
+                    const earned = jobEntries.reduce((s, e) => s + (e.amount ?? e.hours * (e.rate ?? 0)), 0);
+                    const hours = jobEntries.reduce((s, e) => s + e.hours, 0);
+                    return (
+                      <button key={job.id} className="job-tile" onClick={() => openJob(job)}>
+                        <div className="job-tile-name">{job.name}</div>
+                        <div className={`job-tile-amount${earningsHidden ? " earnings-hidden" : ""}`}>
+                          {job.curSymbol}{formatAmount(earned)}
+                        </div>
+                        <div className="job-tile-meta">
+                          {jobEntries.length} session{jobEntries.length !== 1 ? "s" : ""} · {hours.toFixed(1)}h
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {tab === "sessions" && (
+          <div className="page-content">
+            <div className="section-header" style={{ marginTop: 4 }}>
+              <h3>All Sessions</h3>
+            </div>
+            {personalEntries.length === 0 ? (
+              <div className="empty-state"><p>No sessions logged yet.</p></div>
+            ) : (
+              personalEntries.map((e) => {
+                const job = jobs.find((j) => j.id === e.jobId);
+                const { day, date } = formatDate(e.date);
+                const earned = e.amount ?? (e.hours * (e.rate ?? 0));
+                return (
+                  <div key={e.id} className="ecard">
+                    <div className="etop">
+                      <div className="edate-wrap">
+                        <span className="eday">{day}</span>
+                        <span className="edate-txt">{date}</span>
+                      </div>
+                      <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`}>
+                        {job?.curSymbol ?? ""}{formatAmount(earned)}
+                      </span>
+                    </div>
+                    {job && <span className="ejob-tag">{job.name}</span>}
+                    {e.note && <div className="enote">{e.note}</div>}
+                    <div className="emeta">{e.hours}h · {job?.curSymbol ?? ""}{e.rate ?? 0}/{job?.rateType ?? "hr"}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {tab === "myteam" && (
+          <div className="page-content">
+            {/* Team Jobs */}
+            {teamJobs.length > 0 && (
+              <>
+                <div className="section-header" style={{ marginTop: 4 }}>
+                  <h3>Team Jobs</h3>
+                </div>
+                <div className="job-grid" style={{ marginBottom: 24 }}>
+                  {teamJobs.map((job) => (
+                    <button
+                      key={job.id}
+                      className="job-tile"
+                      onClick={() => setLogTeamJob(job)}
+                    >
+                      <div className="job-tile-name">{job.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        {job.curSymbol} · {job.rateType === "hour" ? "Per hour" : "Per day"}
+                      </div>
+                      <div className="job-tile-meta" style={{ color: "var(--gold)", marginTop: 6 }}>
+                        Tap to log session
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* My Team Sessions */}
+            <div className="section-header" style={{ marginTop: teamJobs.length > 0 ? 0 : 4 }}>
+              <h3>My Sessions</h3>
+            </div>
+            {teamEntries.length === 0 ? (
+              <div className="empty-state"><p>No team sessions yet. Log a session from a team job above.</p></div>
+            ) : (
+              <div className="card" style={{ padding: "0 0 4px" }}>
+                {teamEntries.map((e) => {
+                  const job = teamJobs.find((j) => j.id === e.jobId);
+                  const { day, date } = formatDate(e.date);
+                  return (
+                    <div key={e.id} className="team-entry-row">
+                      <div className="team-entry-left">
+                        <h4>{job?.name ?? "Team Job"}</h4>
+                        <p>{day} {date} · {e.hours}h</p>
+                      </div>
+                      <div className="team-entry-right">
+                        {e.status === "approved" && e.amount != null ? (
+                          <div className={`team-entry-amount${earningsHidden ? " earnings-hidden" : ""}`}>
+                            {job?.curSymbol ?? ""}{formatAmount(e.amount)}
+                          </div>
+                        ) : (
+                          <div className="team-entry-amount pending">Pending</div>
+                        )}
+                        <span className={`status-badge ${e.status}`}>{e.status}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Job Detail Panel */}
+      <JobDetailPanel
+        job={selectedJob}
+        open={jobPanelOpen}
+        onClose={() => setJobPanelOpen(false)}
+        onDelete={() => { setJobPanelOpen(false); setSelectedJob(null); }}
+        workerUid={user?.uid ?? ""}
+        workerName={name}
+      />
+
+      {/* Add Job Modal */}
+      {addJobOpen && <AddJobModal onClose={() => setAddJobOpen(false)} ownerUid={user?.uid ?? ""} />}
+
+      {/* Log Team Session Modal */}
+      {logTeamJob && user && (
+        <LogTeamSessionModal
+          job={logTeamJob}
+          workerUid={user.uid}
+          workerName={name}
+          onClose={() => setLogTeamJob(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <AuthGuard>
+      <DashboardInner />
+    </AuthGuard>
+  );
+}

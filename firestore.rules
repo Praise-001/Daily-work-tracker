@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ────────────────────────────────────────────────────
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function isTeamAdmin(teamId) {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/teams/$(teamId))
+        && get(/databases/$(database)/documents/teams/$(teamId)).data.adminUid == uid();
+    }
+
+    function isTeamMember(teamId) {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/teams/$(teamId))
+        && get(/databases/$(database)/documents/teams/$(teamId)).data.members.keys().hasAny([uid()]);
+    }
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    // Each user can only read and write their own profile document.
+    match /users/{userId} {
+      allow read, write: if isAuthed() && uid() == userId;
+    }
+
+    // ── Jobs ─────────────────────────────────────────────────────────────────
+    match /jobs/{jobId} {
+      // Personal jobs: only the owner
+      allow read, write: if isAuthed()
+        && resource.data.ownerUid == uid();
+
+      // Team jobs: admin can read/write; members can read
+      allow read: if isAuthed()
+        && resource.data.teamId != null
+        && (isTeamAdmin(resource.data.teamId) || isTeamMember(resource.data.teamId));
+
+      allow write: if isAuthed()
+        && resource.data.teamId != null
+        && isTeamAdmin(resource.data.teamId);
+
+      // Job creation: the creator must be the declared owner
+      allow create: if isAuthed()
+        && request.resource.data.ownerUid == uid();
+    }
+
+    // ── Entries ───────────────────────────────────────────────────────────────
+    match /entries/{entryId} {
+      // Workers can create their own entries.
+      // Personal entries (no teamId): any status/amount allowed — the worker owns the record.
+      // Team entries: must be pending with no amount — admin sets rate/amount on approval.
+      allow create: if isAuthed()
+        && request.resource.data.workerUid == uid()
+        && (
+          !("teamId" in request.resource.data)
+          || (
+            request.resource.data.status == "pending"
+            && !("amount" in request.resource.data)
+          )
+        );
+
+      // Workers can read their own entries
+      allow read: if isAuthed() && resource.data.workerUid == uid();
+
+      // Team admin can read all entries for their team's jobs
+      allow read: if isAuthed()
+        && resource.data.teamId != null
+        && isTeamAdmin(resource.data.teamId);
+
+      // Only team admin can update entries (approve/reject)
+      // — workerUid and jobId cannot be changed
+      // — teamId cannot be changed
+      allow update: if isAuthed()
+        && resource.data.teamId != null
+        && isTeamAdmin(resource.data.teamId)
+        && request.resource.data.workerUid == resource.data.workerUid
+        && request.resource.data.jobId == resource.data.jobId
+        && request.resource.data.teamId == resource.data.teamId;
+    }
+
+    // ── Teams ─────────────────────────────────────────────────────────────────
+    match /teams/{teamId} {
+      // Admin has full read/write access
+      allow read, write: if isAuthed()
+        && resource.data.adminUid == uid();
+
+      // Team members can read the team document
+      allow read: if isTeamMember(teamId);
+
+      // Any authenticated user can look up a team by invite code via a query
+      // (needed for the join flow — Firestore query by inviteCode field)
+      allow read: if isAuthed();
+
+      // Creation: only the declared admin can create a team for themselves
+      allow create: if isAuthed()
+        && request.resource.data.adminUid == uid();
+
+      // Joining: an authenticated user can add themselves to the members map
+      // Constraints: adminUid, name, inviteCode remain unchanged;
+      // only the caller's own UID may be added as a new member key.
+      allow update: if isAuthed()
+        && request.resource.data.adminUid == resource.data.adminUid
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.inviteCode == resource.data.inviteCode
+        && request.resource.data.members.keys().toSet().difference(
+             resource.data.members.keys().toSet()
+           ).hasOnly([uid()]);
+    }
+  }
+}

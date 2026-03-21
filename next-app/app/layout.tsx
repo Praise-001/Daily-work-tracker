@@ -1,16 +1,23 @@
-"use client";
 import "./globals.css";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
+import Providers from "./providers";
+
+export const metadata = { title: "RateLog", description: "Track your work hours and earnings" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <title>Work Journal</title>
+        {/* Prevent flash of wrong theme — runs synchronously before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('rl-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}`,
+          }}
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body>
-        <div className="shell">{children}</div>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
