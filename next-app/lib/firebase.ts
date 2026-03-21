@@ -1,5 +1,5 @@
 "use client";
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import {
   browserSessionPersistence,
   getAuth,
@@ -8,13 +8,15 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut
+  signOut,
+  type Auth
 } from "firebase/auth";
 import {
   initializeFirestore,
   memoryLocalCache,
   connectFirestoreEmulator,
-  getFirestore
+  getFirestore,
+  type Firestore
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -26,14 +28,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
+// Stub values for SSR — Firebase must only run on the client
+let app: FirebaseApp = {} as FirebaseApp;
+let db: Firestore = {} as Firestore;
+let auth: Auth = {} as Auth;
 
-// Firestore with memory cache only (no IndexedDB / disk persistence)
-initializeFirestore(app, { localCache: memoryLocalCache() });
-const db = getFirestore(app);
+if (typeof window !== "undefined") {
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+    // Firestore with memory cache only (no IndexedDB / disk persistence)
+    initializeFirestore(app, { localCache: memoryLocalCache() });
+  } else {
+    app = getApp();
+  }
+  db = getFirestore(app);
+  auth = getAuth(app);
+  setPersistence(auth, browserSessionPersistence);
+}
 
-const auth = getAuth(app);
-setPersistence(auth, browserSessionPersistence);
 const provider = new GoogleAuthProvider();
 
 export { app, db, auth, provider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, connectFirestoreEmulator };
