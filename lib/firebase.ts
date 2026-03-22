@@ -51,4 +51,4 @@ if (typeof window !== "undefined") {
 
 const provider = new GoogleAuthProvider();
 
-export { app, db, auth, storage, provider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, connectFirestoreEmulator };
+export { app, db, auth, provider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, connectFirestoreEmulator };
