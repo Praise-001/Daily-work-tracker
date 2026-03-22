@@ -1,9 +1,8 @@
-next-app/node_modules/
-next-app/.next/
-next-app/.env.local
-next-app/*.log
-next-app/*.err.log
-next-app/tsconfig.tsbuildinfo
+node_modules/
+.next/
+.env.local
+*.log
+*.err.log
+tsconfig.tsbuildinfo
 nul
-next-app/nul
 .vscode/
