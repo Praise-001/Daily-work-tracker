@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "../../../lib/AuthContext";
-import { getTeamByInviteCode, joinTeam } from "../../../lib/firestoreService";
+import { getTeamByInviteCode, joinTeam, createUserProfile } from "../../../lib/firestoreService";
+import { sanitizeText } from "../../../lib/utils";
 import type { Team } from "../../../lib/types";
 
 export default function JoinPage() {
@@ -15,6 +16,7 @@ export default function JoinPage() {
   const [fetching, setFetching] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
+  const [newUserName, setNewUserName] = useState("");
 
   // Always store the invite code so auth can redirect back here after sign-in
   useEffect(() => {
@@ -23,15 +25,22 @@ export default function JoinPage() {
     }
   }, [code]);
 
-  // Look up the team once auth state is resolved (rules may require auth)
+  // Look up the team once auth state is resolved
   useEffect(() => {
     if (loading || !code) return;
     setFetching(true);
     getTeamByInviteCode(code)
       .then((t) => setTeam(t))
-      .catch(() => { /* rules may block unauthenticated reads — handled in UI */ })
+      .catch(() => { /* rules may block unauthenticated reads */ })
       .finally(() => setFetching(false));
   }, [code, loading]);
+
+  // Pre-fill name from Google display name if user has no profile
+  useEffect(() => {
+    if (user && !userProfile && user.displayName) {
+      setNewUserName(user.displayName);
+    }
+  }, [user, userProfile]);
 
   // Skip join screen if user is already a member
   useEffect(() => {
@@ -42,11 +51,23 @@ export default function JoinPage() {
   }, [loading, user, team, router]);
 
   async function handleJoin() {
-    if (!user || !team || !userProfile) return;
+    if (!user || !team) return;
+
+    const memberName = userProfile?.name ?? newUserName.trim();
+    if (!memberName) { setError("Please enter your name."); return; }
+
     setJoining(true);
     setError("");
     try {
-      await joinTeam(team.id, user.uid, userProfile.name);
+      // New user: create their Firestore profile first
+      if (!userProfile) {
+        await createUserProfile(user.uid, {
+          name: sanitizeText(memberName, 60),
+          type: "personal",
+          joinedTeams: [],
+        });
+      }
+      await joinTeam(team.id, user.uid, memberName);
       await refreshProfile();
       try { sessionStorage.removeItem("rl-join-code"); } catch { /* ignore */ }
       router.replace("/dashboard");
@@ -57,7 +78,6 @@ export default function JoinPage() {
   }
 
   function handleSignIn() {
-    // Code already stored in sessionStorage — auth page will redirect back here
     router.push("/auth?type=personal");
   }
 
@@ -100,6 +120,7 @@ export default function JoinPage() {
 
   const initial = team.name.charAt(0).toUpperCase();
   const memberCount = Object.keys(team.members).length;
+  const isNewUser = user && !userProfile;
 
   return (
     <div className="splash-page">
@@ -117,12 +138,27 @@ export default function JoinPage() {
 
         {error && <div className="message message-error" style={{ marginBottom: 16 }}>{error}</div>}
 
+        {/* Name input for brand new users who have no profile yet */}
+        {isNewUser && (
+          <div className="field" style={{ marginBottom: 16, textAlign: "left" }}>
+            <label style={{ fontSize: 13 }}>Your name</label>
+            <input
+              type="text"
+              placeholder="e.g. John Doe"
+              value={newUserName}
+              onChange={(e) => setNewUserName(e.target.value)}
+              maxLength={60}
+              autoFocus
+            />
+          </div>
+        )}
+
         {user ? (
           <button
             className="btn btn-primary btn-lg"
             style={{ maxWidth: 300, margin: "0 auto" }}
             onClick={handleJoin}
-            disabled={joining}
+            disabled={joining || (!!isNewUser && !newUserName.trim())}
           >
             {joining ? "Joining…" : `Join ${team.name}`}
           </button>

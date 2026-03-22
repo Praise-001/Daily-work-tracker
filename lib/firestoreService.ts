@@ -7,6 +7,7 @@ import {
   updateDoc,
   addDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   onSnapshot,
@@ -219,6 +220,18 @@ export function subscribeTeam(
     if (!snap.exists()) { onData(null); return; }
     onData({ id: snap.id, ...(snap.data() as Omit<Team, "id">) });
   });
+}
+
+export async function removeMember(teamId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, "teams", teamId), {
+    [`members.${uid}`]: deleteField(),
+  });
+  const userSnap = await getDoc(doc(db, "users", uid));
+  if (userSnap.exists()) {
+    const data = userSnap.data() as UserProfile;
+    const joined = (data.joinedTeams ?? []).filter((tid) => tid !== teamId);
+    await updateDoc(doc(db, "users", uid), { joinedTeams: joined });
+  }
 }
 
 export async function deleteJob(jobId: string): Promise<void> {
