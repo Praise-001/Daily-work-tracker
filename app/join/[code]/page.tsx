@@ -122,6 +122,55 @@ export default function JoinPage() {
   const memberCount = Object.keys(team.members).length;
   const isNewUser = user && !userProfile;
 
+  // Dedicated full-screen name-entry view for brand new users
+  if (isNewUser) {
+    return (
+      <div className="splash-page">
+        <div style={{ textAlign: "center", maxWidth: 400 }}>
+          <div
+            className="brand-logo"
+            style={{ width: 72, height: 72, borderRadius: 20, fontSize: 28, margin: "0 auto 24px" }}
+          >
+            {initial}
+          </div>
+          <h1 style={{ fontFamily: "var(--serif)", fontSize: 28, fontWeight: 400, marginBottom: 10 }}>
+            Almost there
+          </h1>
+          <p style={{ color: "var(--muted)", fontSize: 15, lineHeight: 1.6, marginBottom: 28 }}>
+            You&apos;re joining <strong style={{ color: "var(--gold)" }}>{team.name}</strong>.<br />
+            Just tell us your name.
+          </p>
+          <div className="form" style={{ textAlign: "left" }}>
+            <div className="field">
+              <label>Your name</label>
+              <input
+                type="text"
+                placeholder="e.g. John Doe"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newUserName.trim()) handleJoin(); }}
+                maxLength={60}
+                autoFocus
+                style={{ fontSize: 16, padding: "14px 16px" }}
+              />
+            </div>
+          </div>
+          {error && (
+            <div className="message message-error" style={{ marginBottom: 12 }}>{error}</div>
+          )}
+          <button
+            className="btn btn-primary btn-lg"
+            style={{ width: "100%", marginTop: 8 }}
+            onClick={handleJoin}
+            disabled={joining || !newUserName.trim()}
+          >
+            {joining ? "Joining…" : `Continue to join ${team.name}`}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="splash-page">
       <div style={{ textAlign: "center", maxWidth: 420 }}>
@@ -138,27 +187,12 @@ export default function JoinPage() {
 
         {error && <div className="message message-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-        {/* Name input for brand new users who have no profile yet */}
-        {isNewUser && (
-          <div className="field" style={{ marginBottom: 16, textAlign: "left" }}>
-            <label style={{ fontSize: 13 }}>Your name</label>
-            <input
-              type="text"
-              placeholder="e.g. John Doe"
-              value={newUserName}
-              onChange={(e) => setNewUserName(e.target.value)}
-              maxLength={60}
-              autoFocus
-            />
-          </div>
-        )}
-
         {user ? (
           <button
             className="btn btn-primary btn-lg"
             style={{ maxWidth: 300, margin: "0 auto" }}
             onClick={handleJoin}
-            disabled={joining || (!!isNewUser && !newUserName.trim())}
+            disabled={joining}
           >
             {joining ? "Joining…" : `Join ${team.name}`}
           </button>
