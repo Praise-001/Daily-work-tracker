@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, storage } from "./firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { UserProfile, Job, Entry, Team } from "./types";
 import { generateInviteCode } from "./utils";
 
@@ -95,6 +96,12 @@ export function subscribeTeamJobs(
 }
 
 // ─── Entries ──────────────────────────────────────────────────────────────────
+
+export async function uploadSessionProof(file: File, workerUid: string): Promise<string> {
+  const storageRef = ref(storage, `session-proofs/${workerUid}/${Date.now()}_${file.name}`);
+  const snap = await uploadBytes(storageRef, file);
+  return getDownloadURL(snap.ref);
+}
 
 export async function createEntry(
   data: Omit<Entry, "id" | "createdAt">

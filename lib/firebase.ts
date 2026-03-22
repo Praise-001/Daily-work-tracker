@@ -18,6 +18,7 @@ import {
   getFirestore,
   type Firestore
 } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -32,6 +33,7 @@ const firebaseConfig = {
 let app: FirebaseApp = {} as FirebaseApp;
 let db: Firestore = {} as Firestore;
 let auth: Auth = {} as Auth;
+let storage: FirebaseStorage = {} as FirebaseStorage;
 
 if (typeof window !== "undefined") {
   if (!getApps().length) {
@@ -43,9 +45,10 @@ if (typeof window !== "undefined") {
   }
   db = getFirestore(app);
   auth = getAuth(app);
+  storage = getStorage(app);
   setPersistence(auth, browserSessionPersistence);
 }
 
 const provider = new GoogleAuthProvider();
 
-export { app, db, auth, provider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, connectFirestoreEmulator };
+export { app, db, auth, storage, provider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, connectFirestoreEmulator };

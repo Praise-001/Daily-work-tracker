@@ -13,6 +13,7 @@ import {
   subscribeTeamJobs,
   createEntry,
   createJob,
+  uploadSessionProof,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
 import { formatDate, formatAmount, sanitizeText } from "../../lib/utils";
@@ -104,9 +105,25 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5 MB."); return; }
+    setError("");
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  function removeImage() {
+    setImageFile(null);
+    setImagePreview("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,6 +132,10 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
     setError("");
     setSaving(true);
     try {
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        imageUrl = await uploadSessionProof(imageFile, workerUid);
+      }
       const entryData: Parameters<typeof createEntry>[0] = {
         jobId: job.id,
         teamId: job.teamId!,
@@ -125,6 +146,7 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
         workerName,
       };
       if (note.trim()) entryData.note = sanitizeText(note, 300);
+      if (imageUrl) entryData.imageUrl = imageUrl;
       await createEntry(entryData);
       setSuccess(true);
       setTimeout(onClose, 1400);
@@ -168,11 +190,54 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
             <div className="field"><label>Note (optional)</label>
               <textarea placeholder="What did you work on?" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
             </div>
+
+            {/* Image upload */}
+            <div className="field">
+              <label>Proof of work (optional)</label>
+              {imagePreview ? (
+                <div style={{ position: "relative", marginTop: 4 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imagePreview}
+                    alt="preview"
+                    style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="proof-upload"
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "20px 16px", border: "1.5px dashed var(--border)", borderRadius: "var(--radius)", cursor: "pointer", color: "var(--muted)", fontSize: 13, marginTop: 4, transition: "border-color 0.15s" }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  Tap to attach an image
+                  <span style={{ fontSize: 11 }}>JPG, PNG, WebP · max 5 MB</span>
+                </label>
+              )}
+              <input
+                id="proof-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: "none" }}
+                onChange={handleImageChange}
+              />
+            </div>
+
             <div style={{ padding: "10px 14px", background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: "var(--radius)", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>
               Your rate will be set by the team admin when they approve this session.
             </div>
             <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
-              {saving ? "Submitting…" : "Submit for Approval"}
+              {saving ? (imageFile ? "Uploading…" : "Submitting…") : "Submit for Approval"}
             </button>
           </form>
         )}
