@@ -100,7 +100,10 @@ export function subscribeTeamJobs(
 export async function uploadSessionProof(file: File, workerUid: string): Promise<string> {
   const storage = getStorage(app);
   const storageRef = ref(storage, `session-proofs/${workerUid}/${Date.now()}_${file.name}`);
-  const snap = await uploadBytes(storageRef, file);
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Upload timed out — check Firebase Storage is enabled.")), 30_000)
+  );
+  const snap = await Promise.race([uploadBytes(storageRef, file), timeout]);
   return getDownloadURL(snap.ref);
 }
 
