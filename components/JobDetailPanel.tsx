@@ -35,6 +35,7 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
   const [editEntryRate, setEditEntryRate] = useState("");
   const [editEntryNote, setEditEntryNote] = useState("");
   const [savingEntry, setSavingEntry] = useState(false);
+  const [entryError, setEntryError] = useState("");
   const [deletingEntry, setDeletingEntry] = useState<string | null>(null);
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<string | null>(null);
 
@@ -82,26 +83,29 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
     setEditEntryHours(entry.hours.toString());
     setEditEntryRate(entry.rate?.toString() ?? "");
     setEditEntryNote(entry.note ?? "");
+    setEntryError("");
   }
 
   async function handleSaveEntry(e: React.FormEvent) {
     e.preventDefault();
     if (!editingEntry || !job) return;
     const hours = parseFloat(editEntryHours);
-    if (isNaN(hours) || hours <= 0) return;
+    if (isNaN(hours) || hours <= 0) { setEntryError("Enter valid hours."); return; }
     const rate = editEntryRate ? parseFloat(editEntryRate) : (editingEntry.rate ?? 0);
     setSavingEntry(true);
+    setEntryError("");
     try {
       await updateEntry(editingEntry.id, {
         date: editEntryDate,
         hours,
         rate,
         amount: hours * rate,
-        ...(editEntryNote.trim() ? { note: sanitizeText(editEntryNote, 300) } : { note: undefined }),
+        ...(editEntryNote.trim() ? { note: sanitizeText(editEntryNote, 300) } : {}),
       });
       setEditingEntry(null);
-    } catch {
-      /* ignore — keep editing open */
+    } catch (err) {
+      console.error("updateEntry failed:", err);
+      setEntryError("Failed to save. Check console for details.");
     } finally {
       setSavingEntry(false);
     }
@@ -109,11 +113,13 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
 
   async function handleDeleteEntry(entryId: string) {
     setDeletingEntry(entryId);
+    setEntryError("");
     try {
       await deleteEntry(entryId);
       setConfirmDeleteEntry(null);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error("deleteEntry failed:", err);
+      setEntryError("Failed to delete. Check console for details.");
     } finally {
       setDeletingEntry(null);
     }
@@ -304,6 +310,7 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
                   <div key={entry.id} className="ecard" style={{ marginBottom: 10 }}>
                     {isEditing ? (
                       <form onSubmit={handleSaveEntry} className="form" style={{ gap: 10 }}>
+                        {entryError && <div className="message message-error" style={{ fontSize: 12 }}>{entryError}</div>}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                           <div className="field" style={{ margin: 0 }}>
                             <label style={{ fontSize: 11 }}>Date</label>
