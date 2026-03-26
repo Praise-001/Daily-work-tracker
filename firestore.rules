@@ -72,9 +72,13 @@ service cloud.firestore {
         && resource.data.teamId != null
         && isTeamAdmin(resource.data.teamId);
 
-      // Only team admin can update entries (approve/reject)
-      // — workerUid and jobId cannot be changed
-      // — teamId cannot be changed
+      // Workers can update/delete their own personal entries (no teamId)
+      allow update, delete: if isAuthed()
+        && resource.data.workerUid == uid()
+        && !("teamId" in resource.data);
+
+      // Only team admin can update team entries (approve/reject)
+      // — workerUid, jobId, teamId cannot be changed
       allow update: if isAuthed()
         && resource.data.teamId != null
         && isTeamAdmin(resource.data.teamId)
