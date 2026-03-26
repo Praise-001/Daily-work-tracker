@@ -14,6 +14,8 @@ import {
   createEntry,
   createJob,
   uploadSessionProof,
+  updateEntry,
+  deleteEntry,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
 import { formatDate, formatAmount, sanitizeText } from "../../lib/utils";
@@ -268,6 +270,63 @@ function DashboardInner() {
   const [addJobOpen, setAddJobOpen] = useState(false);
   const [logTeamJob, setLogTeamJob] = useState<Job | null>(null);
 
+  // Session editing state
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editHours, setEditHours] = useState("");
+  const [editRate, setEditRate] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function startEdit(entry: Entry) {
+    setEditingEntry(entry);
+    setEditDate(entry.date);
+    setEditHours(entry.hours.toString());
+    setEditRate(entry.rate?.toString() ?? "");
+    setEditNote(entry.note ?? "");
+    setEditError("");
+  }
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingEntry) return;
+    const hours = parseFloat(editHours);
+    if (isNaN(hours) || hours <= 0) { setEditError("Enter valid hours."); return; }
+    const rate = editRate ? parseFloat(editRate) : (editingEntry.rate ?? 0);
+    setEditSaving(true);
+    setEditError("");
+    try {
+      await updateEntry(editingEntry.id, {
+        date: editDate,
+        hours,
+        rate,
+        amount: hours * rate,
+        ...(editNote.trim() ? { note: sanitizeText(editNote, 300) } : {}),
+      });
+      setEditingEntry(null);
+    } catch (err) {
+      console.error("updateEntry failed:", err);
+      setEditError("Failed to save. Try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDeleteEntry(entryId: string) {
+    setDeletingId(entryId);
+    try {
+      await deleteEntry(entryId);
+      setConfirmDeleteId(null);
+    } catch (err) {
+      console.error("deleteEntry failed:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const hasTeam = (userProfile?.joinedTeams?.length ?? 0) > 0;
   const name = userProfile?.name ?? "";
   const initial = name ? name.charAt(0).toUpperCase() : "R";
@@ -421,20 +480,63 @@ function DashboardInner() {
                 const job = jobs.find((j) => j.id === e.jobId);
                 const { day, date } = formatDate(e.date);
                 const earned = e.amount ?? (e.hours * (e.rate ?? 0));
+                const isEditing = editingEntry?.id === e.id;
+                const isConfirmDel = confirmDeleteId === e.id;
                 return (
                   <div key={e.id} className="ecard">
-                    <div className="etop">
-                      <div className="edate-wrap">
-                        <span className="eday">{day}</span>
-                        <span className="edate-txt">{date}</span>
-                      </div>
-                      <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`}>
-                        {job?.curSymbol ?? ""}{formatAmount(earned)}
-                      </span>
-                    </div>
-                    {job && <span className="ejob-tag">{job.name}</span>}
-                    {e.note && <div className="enote">{e.note}</div>}
-                    <div className="emeta">{e.hours}h · {job?.curSymbol ?? ""}{e.rate ?? 0}/{job?.rateType ?? "hr"}</div>
+                    {isEditing ? (
+                      <form onSubmit={handleSaveEdit} className="form" style={{ gap: 10 }}>
+                        {editError && <div className="message message-error" style={{ fontSize: 12 }}>{editError}</div>}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Date</label>
+                            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} required />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Hours</label>
+                            <input type="number" value={editHours} onChange={(e) => setEditHours(e.target.value)} min="0.1" step="0.1" required />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Rate ({job?.curSymbol}/{job?.rateType ?? "hr"})</label>
+                            <input type="number" value={editRate} onChange={(e) => setEditRate(e.target.value)} min="0" step="0.01" />
+                          </div>
+                          <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                            <label style={{ fontSize: 11 }}>Note</label>
+                            <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} maxLength={300} rows={2} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                          <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => setEditingEntry(null)}>Cancel</button>
+                          <button type="submit" className="btn btn-primary" style={{ flex: 1, fontSize: 13 }} disabled={editSaving}>{editSaving ? "Saving…" : "Save"}</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="etop">
+                          <div className="edate-wrap">
+                            <span className="eday">{day}</span>
+                            <span className="edate-txt">{date}</span>
+                          </div>
+                          <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`}>
+                            {job?.curSymbol ?? ""}{formatAmount(earned)}
+                          </span>
+                        </div>
+                        {job && <span className="ejob-tag">{job.name}</span>}
+                        {e.note && <div className="enote">{e.note}</div>}
+                        <div className="emeta">{e.hours}h · {job?.curSymbol ?? ""}{e.rate ?? 0}/{job?.rateType ?? "hr"}</div>
+                        {isConfirmDel ? (
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                            <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12, background: "#e05454", borderColor: "#e05454" }} onClick={() => handleDeleteEntry(e.id)} disabled={deletingId === e.id}>{deletingId === e.id ? "…" : "Delete"}</button>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => startEdit(e)}>Edit</button>
+                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12, color: "#e05454" }} onClick={() => setConfirmDeleteId(e.id)}>Delete</button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 );
               })
