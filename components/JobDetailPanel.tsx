@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { Job } from "../lib/types";
-import { updateJob, createEntry, deleteJob } from "../lib/firestoreService";
+import type { Job, Entry } from "../lib/types";
+import { updateJob, createEntry, deleteJob, subscribeJobEntries, updateEntry, deleteEntry } from "../lib/firestoreService";
 import { getCurrencyByCode } from "../lib/currencies";
-import { sanitizeText } from "../lib/utils";
+import { sanitizeText, formatDate, formatAmount } from "../lib/utils";
 import CurrencyPicker from "./CurrencyPicker";
 import RateTypeToggle from "./RateTypeToggle";
 import type { RateType } from "../lib/types";
@@ -17,7 +17,7 @@ interface Props {
   workerName: string;
 }
 
-type PanelView = "log" | "edit";
+type PanelView = "log" | "sessions" | "edit";
 
 export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid, workerName }: Props) {
   const [view, setView] = useState<PanelView>("log");
@@ -26,6 +26,17 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
   const [success, setSuccess] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Sessions list
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editEntryDate, setEditEntryDate] = useState("");
+  const [editEntryHours, setEditEntryHours] = useState("");
+  const [editEntryRate, setEditEntryRate] = useState("");
+  const [editEntryNote, setEditEntryNote] = useState("");
+  const [savingEntry, setSavingEntry] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState<string | null>(null);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<string | null>(null);
 
   // Log session form
   const [logDate, setLogDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -55,6 +66,58 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
+
+  // Subscribe to this job's personal entries
+  useEffect(() => {
+    if (!job) return;
+    const unsub = subscribeJobEntries(job.id, (all) =>
+      setEntries(all.filter((e) => !e.teamId))
+    );
+    return unsub;
+  }, [job]);
+
+  function startEditEntry(entry: Entry) {
+    setEditingEntry(entry);
+    setEditEntryDate(entry.date);
+    setEditEntryHours(entry.hours.toString());
+    setEditEntryRate(entry.rate?.toString() ?? "");
+    setEditEntryNote(entry.note ?? "");
+  }
+
+  async function handleSaveEntry(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingEntry || !job) return;
+    const hours = parseFloat(editEntryHours);
+    if (isNaN(hours) || hours <= 0) return;
+    const rate = editEntryRate ? parseFloat(editEntryRate) : (editingEntry.rate ?? 0);
+    setSavingEntry(true);
+    try {
+      await updateEntry(editingEntry.id, {
+        date: editEntryDate,
+        hours,
+        rate,
+        amount: hours * rate,
+        ...(editEntryNote.trim() ? { note: sanitizeText(editEntryNote, 300) } : { note: undefined }),
+      });
+      setEditingEntry(null);
+    } catch {
+      /* ignore — keep editing open */
+    } finally {
+      setSavingEntry(false);
+    }
+  }
+
+  async function handleDeleteEntry(entryId: string) {
+    setDeletingEntry(entryId);
+    try {
+      await deleteEntry(entryId);
+      setConfirmDeleteEntry(null);
+    } catch {
+      /* ignore */
+    } finally {
+      setDeletingEntry(null);
+    }
+  }
 
   async function handleLogSession(e: React.FormEvent) {
     e.preventDefault();
@@ -159,14 +222,14 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
 
         {/* Tab nav */}
         <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid var(--border)" }}>
-          {(["log", "edit"] as PanelView[]).map((v) => (
+          {(["log", "sessions", "edit"] as PanelView[]).map((v) => (
             <button
               key={v}
               type="button"
-              onClick={() => { setView(v); setError(""); setSuccess(false); setConfirmDelete(false); }}
+              onClick={() => { setView(v); setError(""); setSuccess(false); setConfirmDelete(false); setEditingEntry(null); setConfirmDeleteEntry(null); }}
               className={`dash-tab${view === v ? " active" : ""}`}
             >
-              {v === "log" ? "Log Session" : "Edit Job"}
+              {v === "log" ? "Log Session" : v === "sessions" ? `Sessions${entries.length > 0 ? ` (${entries.length})` : ""}` : "Edit Job"}
             </button>
           ))}
         </div>
@@ -225,6 +288,74 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
               {saving ? "Saving…" : "Log Session"}
             </button>
           </form>
+        )}
+
+        {/* Sessions list */}
+        {view === "sessions" && (
+          <div>
+            {entries.length === 0 ? (
+              <div className="empty-state"><p>No sessions logged yet.</p></div>
+            ) : (
+              entries.map((entry) => {
+                const { day, date } = formatDate(entry.date);
+                const isEditing = editingEntry?.id === entry.id;
+                const isConfirmDel = confirmDeleteEntry === entry.id;
+                return (
+                  <div key={entry.id} className="ecard" style={{ marginBottom: 10 }}>
+                    {isEditing ? (
+                      <form onSubmit={handleSaveEntry} className="form" style={{ gap: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Date</label>
+                            <input type="date" value={editEntryDate} onChange={(e) => setEditEntryDate(e.target.value)} required />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Hours</label>
+                            <input type="number" value={editEntryHours} onChange={(e) => setEditEntryHours(e.target.value)} min="0.1" step="0.1" required />
+                          </div>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: 11 }}>Rate ({currency.symbol}/{job.rateType})</label>
+                            <input type="number" value={editEntryRate} onChange={(e) => setEditEntryRate(e.target.value)} min="0" step="0.01" />
+                          </div>
+                          <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                            <label style={{ fontSize: 11 }}>Note</label>
+                            <textarea value={editEntryNote} onChange={(e) => setEditEntryNote(e.target.value)} maxLength={300} rows={2} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                          <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => setEditingEntry(null)}>Cancel</button>
+                          <button type="submit" className="btn btn-primary" style={{ flex: 1, fontSize: 13 }} disabled={savingEntry}>{savingEntry ? "Saving…" : "Save"}</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="etop">
+                          <div className="edate-wrap">
+                            <span className="eday">{day}</span>
+                            <span className="edate-txt">{date}</span>
+                          </div>
+                          <span className="eearned">{currency.symbol}{formatAmount(entry.amount ?? 0)}</span>
+                        </div>
+                        <div className="emeta">{entry.hours}h · {currency.symbol}{entry.rate ?? 0}/{job.rateType}</div>
+                        {entry.note && <div className="enote">{entry.note}</div>}
+                        {isConfirmDel ? (
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setConfirmDeleteEntry(null)}>Cancel</button>
+                            <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12, background: "#e05454", borderColor: "#e05454" }} onClick={() => handleDeleteEntry(entry.id)} disabled={deletingEntry === entry.id}>{deletingEntry === entry.id ? "…" : "Delete"}</button>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => startEditEntry(entry)}>Edit</button>
+                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12, color: "#e05454" }} onClick={() => setConfirmDeleteEntry(entry.id)}>Delete</button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         )}
 
         {/* Edit job */}

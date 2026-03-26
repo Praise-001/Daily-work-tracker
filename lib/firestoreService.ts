@@ -163,6 +163,17 @@ export function subscribeTeamPendingEntries(
   });
 }
 
+export async function updateEntry(
+  entryId: string,
+  data: Partial<Pick<Entry, "date" | "hours" | "rate" | "note" | "amount">>
+): Promise<void> {
+  await updateDoc(doc(db, "entries", entryId), clean(data));
+}
+
+export async function deleteEntry(entryId: string): Promise<void> {
+  await deleteDoc(doc(db, "entries", entryId));
+}
+
 export async function approveEntry(entryId: string, amount: number, rate: number): Promise<void> {
   await updateDoc(doc(db, "entries", entryId), { status: "approved", amount, rate });
 }
