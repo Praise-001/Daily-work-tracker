@@ -546,6 +546,61 @@ function DashboardInner() {
 
         {tab === "myteam" && (
           <div className="page-content">
+            {/* Team Earnings Summary */}
+            {(() => {
+              const approvedTeamEarnings: Record<string, { symbol: string; total: number }> = {};
+              teamEntries
+                .filter((e) => e.status === "approved" && e.amount != null)
+                .forEach((e) => {
+                  const job = teamJobs.find((j) => j.id === e.jobId);
+                  const cur = job?.cur ?? "?";
+                  if (!approvedTeamEarnings[cur]) {
+                    approvedTeamEarnings[cur] = { symbol: job?.curSymbol ?? "", total: 0 };
+                  }
+                  approvedTeamEarnings[cur].total += e.amount ?? 0;
+                });
+              const approvedCurrencies = Object.entries(approvedTeamEarnings);
+              const pendingCount = teamEntries.filter((e) => e.status === "pending").length;
+              return (
+                <div className="card" style={{ padding: "18px 20px", marginBottom: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase" }}>Team Earnings</span>
+                    <button
+                      type="button"
+                      onClick={() => setEarningsHidden((v) => !v)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}
+                      aria-label={earningsHidden ? "Show earnings" : "Hide earnings"}
+                    >
+                      {earningsHidden ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      )}
+                    </button>
+                  </div>
+                  {approvedCurrencies.length === 0 ? (
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>No approved earnings yet.</div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                      {approvedCurrencies.map(([cur, { symbol, total }]) => (
+                        <div key={cur}>
+                          <div className={`eearned${earningsHidden ? " earnings-hidden" : ""}`} style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.1 }}>
+                            {symbol}{formatAmount(total)}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>{cur}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pendingCount > 0 && (
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                      {pendingCount} session{pendingCount !== 1 ? "s" : ""} pending approval
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Team Jobs */}
             {teamJobs.length > 0 && (
               <>
