@@ -114,10 +114,17 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5 MB."); return; }
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setError("");
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
@@ -125,6 +132,7 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
   }
 
   function removeImage() {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview("");
     setUploadProgress(0);
