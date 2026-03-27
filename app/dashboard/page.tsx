@@ -110,6 +110,7 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
@@ -120,11 +121,13 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
     setError("");
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setUploadProgress(0);
   }
 
   function removeImage() {
     setImageFile(null);
     setImagePreview("");
+    setUploadProgress(0);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -137,9 +140,11 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
       let imageUrl: string | undefined;
       if (imageFile) {
         try {
-          imageUrl = await uploadSessionProof(imageFile, workerUid);
-        } catch {
-          setError("Image upload failed. Make sure Firebase Storage is enabled, then try again.");
+          imageUrl = await uploadSessionProof(imageFile, workerUid, setUploadProgress);
+        } catch (err) {
+          console.error("uploadSessionProof failed:", err);
+          const message = err instanceof Error ? err.message : "Unknown upload error";
+          setError(`Image upload failed: ${message}`);
           setSaving(false);
           return;
         }
@@ -162,6 +167,7 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
       setError("Failed to log session. Try again.");
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   }
 
@@ -245,7 +251,11 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
               Your rate will be set by the team admin when they approve this session.
             </div>
             <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
-              {saving ? (imageFile ? "Uploading…" : "Submitting…") : "Submit for Approval"}
+              {saving
+                ? (imageFile
+                  ? `Uploading…${uploadProgress > 0 ? ` ${uploadProgress}%` : ""}`
+                  : "Submitting…")
+                : "Submit for Approval"}
             </button>
           </form>
         )}
