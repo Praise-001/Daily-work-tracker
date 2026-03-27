@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db, app } from "./firebase";
+import { db } from "./firebase";
+import { getApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { UserProfile, Job, Entry, Team } from "./types";
 import { generateInviteCode } from "./utils";
@@ -98,10 +99,10 @@ export function subscribeTeamJobs(
 // ─── Entries ──────────────────────────────────────────────────────────────────
 
 export async function uploadSessionProof(file: File, workerUid: string): Promise<string> {
-  const storage = getStorage(app);
+  const storage = getStorage(getApp());
   const storageRef = ref(storage, `session-proofs/${workerUid}/${Date.now()}_${file.name}`);
   const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Upload timed out — check Firebase Storage is enabled.")), 30_000)
+    setTimeout(() => reject(new Error("Upload timed out.")), 30_000)
   );
   const snap = await Promise.race([uploadBytes(storageRef, file), timeout]);
   return getDownloadURL(snap.ref);

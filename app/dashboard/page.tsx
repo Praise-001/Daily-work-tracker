@@ -138,10 +138,9 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
       if (imageFile) {
         try {
           imageUrl = await uploadSessionProof(imageFile, workerUid);
-        } catch {
-          setError("Image upload failed. Make sure Firebase Storage is enabled, then try again.");
-          setSaving(false);
-          return;
+        } catch (err) {
+          console.error("Image upload failed:", err);
+          setError("Image couldn't be attached — submitting session without it.");
         }
       }
       const entryData: Parameters<typeof createEntry>[0] = {
