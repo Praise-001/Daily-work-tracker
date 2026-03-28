@@ -15,8 +15,6 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { getApp } from "firebase/app";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { UserProfile, Job, Entry, Team } from "./types";
 import { generateInviteCode } from "./utils";
 
@@ -25,6 +23,11 @@ function clean<T extends object>(obj: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined)
   ) as Partial<T>;
+}
+
+function normalizeCloudinaryUploadError(error: unknown): Error {
+  if (!(error instanceof Error)) return new Error("Unknown upload error.");
+  return error;
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -98,14 +101,68 @@ export function subscribeTeamJobs(
 
 // ─── Entries ──────────────────────────────────────────────────────────────────
 
-export async function uploadSessionProof(file: File, workerUid: string): Promise<string> {
-  const storage = getStorage(getApp());
-  const storageRef = ref(storage, `session-proofs/${workerUid}/${Date.now()}_${file.name}`);
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Upload timed out.")), 30_000)
-  );
-  const snap = await Promise.race([uploadBytes(storageRef, file), timeout]);
-  return getDownloadURL(snap.ref);
+export async function uploadSessionProof(
+  file: File,
+  workerUid: string,
+  onProgress?: (progressPct: number) => void
+): Promise<string> {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Missing Cloudinary env vars: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.");
+  }
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", `session-proofs/${workerUid}`);
+
+  return await new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const timeoutId = setTimeout(() => {
+      xhr.abort();
+      reject(new Error("Upload timed out after 30s. Check network or Cloudinary config."));
+    }, 30_000);
+
+    xhr.open("POST", uploadUrl);
+
+    xhr.upload.onprogress = (evt) => {
+      if (!onProgress || !evt.lengthComputable || evt.total === 0) return;
+      const pct = Math.round((evt.loaded / evt.total) * 100);
+      onProgress(pct);
+    };
+
+    xhr.onload = () => {
+      clearTimeout(timeoutId);
+      try {
+        const payload = JSON.parse(xhr.responseText) as { secure_url?: string; error?: { message?: string } };
+        if (xhr.status >= 200 && xhr.status < 300 && payload.secure_url) {
+          resolve(payload.secure_url);
+          return;
+        }
+        reject(new Error(payload.error?.message || `Cloudinary upload failed with status ${xhr.status}.`));
+      } catch {
+        reject(new Error("Cloudinary upload returned an invalid response."));
+      }
+    };
+
+    xhr.onerror = () => {
+      clearTimeout(timeoutId);
+      reject(new Error("Network error while uploading image to Cloudinary."));
+    };
+
+    xhr.onabort = () => {
+      clearTimeout(timeoutId);
+      reject(new Error("Image upload was canceled."));
+    };
+
+    try {
+      xhr.send(formData);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      reject(normalizeCloudinaryUploadError(error));
+    }
+  });
 }
 
 export async function createEntry(

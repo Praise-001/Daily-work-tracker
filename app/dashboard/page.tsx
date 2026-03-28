@@ -110,21 +110,32 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5 MB."); return; }
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setError("");
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setUploadProgress(0);
   }
 
   function removeImage() {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview("");
+    setUploadProgress(0);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -137,10 +148,13 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
       let imageUrl: string | undefined;
       if (imageFile) {
         try {
-          imageUrl = await uploadSessionProof(imageFile, workerUid);
+          imageUrl = await uploadSessionProof(imageFile, workerUid, setUploadProgress);
         } catch (err) {
-          console.error("Image upload failed:", err);
-          setError("Image couldn't be attached — submitting session without it.");
+          console.error("uploadSessionProof failed:", err);
+          const message = err instanceof Error ? err.message : "Unknown upload error";
+          setError(`Image upload failed: ${message}`);
+          setSaving(false);
+          return;
         }
       }
       const entryData: Parameters<typeof createEntry>[0] = {
@@ -161,6 +175,7 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
       setError("Failed to log session. Try again.");
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   }
 
@@ -244,7 +259,11 @@ function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
               Your rate will be set by the team admin when they approve this session.
             </div>
             <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
-              {saving ? (imageFile ? "Uploading…" : "Submitting…") : "Submit for Approval"}
+              {saving
+                ? (imageFile
+                  ? `Uploading…${uploadProgress > 0 ? ` ${uploadProgress}%` : ""}`
+                  : "Submitting…")
+                : "Submit for Approval"}
             </button>
           </form>
         )}
