@@ -39,7 +39,6 @@ export interface Entry {
   workerName?: string;
   amount?: number;
   teamId?: string;
-  imageUrl?: string;
   createdAt: Timestamp;
 }
 
