@@ -13,22 +13,7 @@ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...
-NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...
 ```
-
-## Cloudinary setup (required for image proof uploads)
-Image proof uploads use Cloudinary, while app data still uses Firestore.
-
-1. Create a Cloudinary account/project and copy your **cloud name**.
-2. Create an **unsigned upload preset** in Cloudinary settings.
-3. Set:
-   - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
-   - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
-4. (Recommended) Restrict the unsigned preset:
-   - `resource_type: image`
-   - folder restrictions
-   - max file size
 
 ## Run
 ```
