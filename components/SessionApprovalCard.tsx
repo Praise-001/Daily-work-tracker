@@ -68,18 +68,6 @@ export default function SessionApprovalCard({ entry, job }: Props) {
         </div>
       )}
 
-      {entry.imageUrl && (
-        <a href={entry.imageUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginBottom: 10 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={entry.imageUrl}
-            alt="Work proof"
-            style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
-          />
-          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>Tap to open full image</div>
-        </a>
-      )}
-
       {error && <div className="message message-error" style={{ marginBottom: 8 }}>{error}</div>}
 
       {showApproveForm ? (
