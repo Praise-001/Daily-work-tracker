@@ -727,10 +727,7 @@ body {
 }
 
 .splash-cta {
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-top: 48px;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
   font-weight: 500;
@@ -751,7 +748,7 @@ body {
   color: var(--gold);
 }
 
-.splash-cta:active { transform: translateX(-50%) scale(0.97); }
+.splash-cta:active { transform: scale(0.97); }
 
 .splash-mounted .splash-title {
   animation: fadeRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
