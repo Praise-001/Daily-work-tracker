@@ -7,6 +7,7 @@ import SessionApprovalCard from "../../components/SessionApprovalCard";
 import SettingsPopover, { GearButton } from "../../components/SettingsPopover";
 import CurrencyPicker from "../../components/CurrencyPicker";
 import RateTypeToggle from "../../components/RateTypeToggle";
+import TeamWeeklyTimesheet from "../../components/TeamWeeklyTimesheet";
 import { useAuth } from "../../lib/AuthContext";
 import {
   subscribeTeam,
@@ -18,7 +19,7 @@ import { getCurrencyByCode } from "../../lib/currencies";
 import { sanitizeText, formatDate, formatAmount } from "../../lib/utils";
 import type { Team, Job, Entry, RateType, TeamMember } from "../../lib/types";
 
-type Tab = "overview" | "pending" | "members";
+type Tab = "overview" | "pending" | "members" | "timesheet";
 type TimeFrame = "7d" | "30d" | "month" | "all";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -328,6 +329,7 @@ function TeamDashboardInner() {
           )}
         </button>
         <button className={`dash-tab${tab === "members" ? " active" : ""}`} onClick={() => setTab("members")}>Members</button>
+        <button className={`dash-tab${tab === "timesheet" ? " active" : ""}`} onClick={() => setTab("timesheet")}>Timesheet</button>
       </div>
 
       <div className="dash-content">
@@ -391,6 +393,17 @@ function TeamDashboardInner() {
                 />
               ))
             )}
+          </div>
+        )}
+
+        {/* Timesheet */}
+        {tab === "timesheet" && (
+          <div className="page-content">
+            <TeamWeeklyTimesheet
+              allEntries={allEntries}
+              members={team?.members ?? {}}
+              jobs={jobs}
+            />
           </div>
         )}
 
