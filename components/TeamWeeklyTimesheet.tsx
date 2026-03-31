@@ -33,13 +33,6 @@ function getSundayStr(mondayStr: string): string {
   return toDateStr(d);
 }
 
-function getMondayOfWeek(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  return toDateStr(d);
-}
-
 function getRangeDays(start: string, end: string): string[] {
   const days: string[] = [];
   const s = new Date(start + "T00:00:00");
@@ -69,17 +62,6 @@ const cell: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-const navBtn: React.CSSProperties = {
-  background: "var(--surface2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "7px 14px",
-  cursor: "pointer",
-  color: "var(--text)",
-  fontSize: 18,
-  lineHeight: 1,
-};
-
 const dateInput: React.CSSProperties = {
   background: "var(--surface2)",
   border: "1px solid var(--border)",
@@ -92,10 +74,12 @@ const dateInput: React.CSSProperties = {
 };
 
 export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUid, adminName }: Props) {
-  const [weekStart, setWeekStart] = useState<string>(getMondayStr());
-  const weekEnd = getSundayStr(weekStart);
+  const monday = getMondayStr();
+  const [startDate, setStartDate] = useState<string>(monday);
+  const [endDate, setEndDate] = useState<string>(getSundayStr(monday));
+  const [selectedJobId, setSelectedJobId] = useState<string>("all");
 
-  const rangeDays = useMemo(() => getRangeDays(weekStart, weekEnd), [weekStart, weekEnd]);
+  const rangeDays = useMemo(() => getRangeDays(startDate, endDate), [startDate, endDate]);
 
   const memberList = useMemo(() => {
     const list = Object.entries(members);
@@ -105,33 +89,48 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
     return list;
   }, [members, adminUid, adminName]);
 
-  const rangeEntries = useMemo(
-    () => allEntries.filter((e) => rangeDays.includes(e.date)),
-    [allEntries, rangeDays]
-  );
+  // Filter entries by date range and optionally by job
+  const filteredEntries = useMemo(() => {
+    return allEntries.filter((e) => {
+      const inRange = rangeDays.includes(e.date);
+      const inJob = selectedJobId === "all" || e.jobId === selectedJobId;
+      return inRange && inJob;
+    });
+  }, [allEntries, rangeDays, selectedJobId]);
 
   const hoursGrid = useMemo(() => {
     const grid: Record<string, Record<string, number>> = {};
     memberList.forEach(([uid]) => { grid[uid] = {}; });
-    rangeEntries.forEach((e) => {
+    filteredEntries.forEach((e) => {
       if (!grid[e.workerUid]) return;
       grid[e.workerUid][e.date] = (grid[e.workerUid][e.date] ?? 0) + e.hours;
     });
     return grid;
-  }, [rangeEntries, memberList]);
+  }, [filteredEntries, memberList]);
 
+  // Rate: scoped to the selected job if one is chosen, else all-time approved
   const rateData = useMemo(() => {
     const result: Record<string, { rate: number; symbol: string }> = {};
+    const scopedJob = selectedJobId !== "all" ? jobs.find((j) => j.id === selectedJobId) : undefined;
+
     memberList.forEach(([uid]) => {
-      const approvedAll = allEntries.filter(
-        (e) => e.workerUid === uid && e.status === "approved" && (e.amount ?? 0) > 0 && e.hours > 0
+      const approvedPool = allEntries.filter(
+        (e) =>
+          e.workerUid === uid &&
+          e.status === "approved" &&
+          (e.amount ?? 0) > 0 &&
+          e.hours > 0 &&
+          (selectedJobId === "all" || e.jobId === selectedJobId)
       );
       let rate = 0;
       let symbol = "";
-      if (approvedAll.length > 0) {
-        const recent = [...approvedAll].sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (approvedPool.length > 0) {
+        const recent = [...approvedPool].sort((a, b) => b.date.localeCompare(a.date))[0];
         rate = recent.rate ?? (recent.amount! / recent.hours);
         symbol = jobs.find((j) => j.id === recent.jobId)?.curSymbol ?? "";
+      } else if (scopedJob?.defRate) {
+        rate = scopedJob.defRate;
+        symbol = scopedJob.curSymbol;
       } else {
         const workerAll = allEntries.filter((e) => e.workerUid === uid);
         const jobCount: Record<string, number> = {};
@@ -144,41 +143,71 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
       result[uid] = { rate, symbol };
     });
     return result;
-  }, [allEntries, memberList, jobs]);
-
-  function shiftWeek(days: number) {
-    const d = new Date(weekStart + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    setWeekStart(toDateStr(d));
-  }
+  }, [allEntries, memberList, jobs, selectedJobId]);
 
   if (memberList.length === 0) {
     return <div className="empty-state"><p>No team members yet. Share your invite link to onboard people.</p></div>;
   }
 
+  const rangeCount = rangeDays.length;
+
   return (
     <div>
-      {/* Week navigation */}
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
-        <button onClick={() => shiftWeek(-7)} style={navBtn} aria-label="Previous week">‹</button>
+      {/* Controls row */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
 
-        <div style={{ textAlign: "center", flex: 1, minWidth: 140 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{shortDate(weekStart)} – {shortDate(weekEnd)}</div>
-          <div style={{ fontSize: 11, color: "var(--muted)" }}>
-            {new Date(weekStart + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+        {/* Job filter */}
+        {jobs.length > 1 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>Job</span>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedJobId("all")}
+                style={{
+                  padding: "5px 12px", fontSize: 12, borderRadius: 99, cursor: "pointer",
+                  background: selectedJobId === "all" ? "var(--gold)" : "var(--surface2)",
+                  color: selectedJobId === "all" ? "#0d0d0d" : "var(--muted)",
+                  border: selectedJobId === "all" ? "none" : "1px solid var(--border)",
+                  fontWeight: selectedJobId === "all" ? 600 : 400,
+                }}
+              >
+                All Jobs
+              </button>
+              {jobs.map((job) => (
+                <button
+                  key={job.id}
+                  type="button"
+                  onClick={() => setSelectedJobId(job.id)}
+                  style={{
+                    padding: "5px 12px", fontSize: 12, borderRadius: 99, cursor: "pointer",
+                    background: selectedJobId === job.id ? "var(--gold)" : "var(--surface2)",
+                    color: selectedJobId === job.id ? "#0d0d0d" : "var(--muted)",
+                    border: selectedJobId === job.id ? "none" : "1px solid var(--border)",
+                    fontWeight: selectedJobId === job.id ? 600 : 400,
+                  }}
+                >
+                  {job.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        <button onClick={() => shiftWeek(7)} style={navBtn} aria-label="Next week">›</button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-          <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>Jump to</span>
-          <input
-            type="date"
-            value={weekStart}
-            onChange={(e) => { if (e.target.value) setWeekStart(getMondayOfWeek(e.target.value)); }}
-            style={dateInput}
-          />
+        {/* Date range */}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>From</span>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={dateInput} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>To</span>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={dateInput} />
+          </div>
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>
+            {rangeCount} day{rangeCount !== 1 ? "s" : ""}
+            {rangeCount >= 62 ? " (max)" : ""}
+          </span>
         </div>
       </div>
 
@@ -230,10 +259,10 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
               <td colSpan={memberList.length + 2} style={{ padding: 0, height: 2, background: "var(--border2)" }} />
             </tr>
 
-            {/* Weekly totals */}
+            {/* Total hours */}
             <tr>
               <td style={{ ...cell, textAlign: "left", fontWeight: 700, color: "var(--text)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.4px" }}>
-                Weekly
+                Total
               </td>
               {memberList.map(([uid]) => {
                 const total = rangeDays.reduce((s, d) => s + (hoursGrid[uid]?.[d] ?? 0), 0);
