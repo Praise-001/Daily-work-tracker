@@ -8,6 +8,7 @@ import SettingsPopover, { GearButton } from "../../components/SettingsPopover";
 import CurrencyPicker from "../../components/CurrencyPicker";
 import RateTypeToggle from "../../components/RateTypeToggle";
 import TeamWeeklyTimesheet from "../../components/TeamWeeklyTimesheet";
+import LogTeamSessionModal from "../../components/LogTeamSessionModal";
 import { useAuth } from "../../lib/AuthContext";
 import {
   subscribeTeam,
@@ -250,6 +251,7 @@ function TeamDashboardInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addJobOpen, setAddJobOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ uid: string; member: TeamMember } | null>(null);
+  const [logSessionJob, setLogSessionJob] = useState<Job | null>(null);
 
   const name = userProfile?.name ?? "";
   const teamName = userProfile?.teamName ?? team?.name ?? "Your Team";
@@ -366,6 +368,13 @@ function TeamDashboardInner() {
                         {totalHours.toFixed(1)}h logged
                         {pendingCount > 0 ? ` · ${pendingCount} pending` : ""}
                       </div>
+                      <button
+                        type="button"
+                        onClick={(ev) => { ev.stopPropagation(); setLogSessionJob(job); }}
+                        style={{ marginTop: 10, fontSize: 11, padding: "4px 10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", cursor: "pointer", color: "var(--muted)", width: "100%" }}
+                      >
+                        + Log My Session
+                      </button>
                     </button>
                   );
                 })}
@@ -403,6 +412,8 @@ function TeamDashboardInner() {
               allEntries={allEntries}
               members={team?.members ?? {}}
               jobs={jobs}
+              adminUid={user?.uid}
+              adminName={name}
             />
           </div>
         )}
@@ -461,6 +472,15 @@ function TeamDashboardInner() {
 
       {addJobOpen && teamId && user && (
         <AddJobModal onClose={() => setAddJobOpen(false)} teamId={teamId} ownerUid={user.uid} />
+      )}
+
+      {logSessionJob && user && (
+        <LogTeamSessionModal
+          job={logSessionJob}
+          workerUid={user.uid}
+          workerName={name}
+          onClose={() => setLogSessionJob(null)}
+        />
       )}
 
       {selectedMember && (

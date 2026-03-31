@@ -7,10 +7,16 @@ interface Props {
   allEntries: Entry[];
   members: Record<string, TeamMember>;
   jobs: Job[];
+  adminUid?: string;
+  adminName?: string;
 }
 
+// Local-time-safe date string (fixes UTC off-by-one in UTC+1)
 function toDateStr(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function getMondayStr(): string {
@@ -24,6 +30,13 @@ function getMondayStr(): string {
 function getSundayStr(mondayStr: string): string {
   const d = new Date(mondayStr + "T00:00:00");
   d.setDate(d.getDate() + 6);
+  return toDateStr(d);
+}
+
+function getMondayOfWeek(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
   return toDateStr(d);
 }
 
@@ -56,6 +69,17 @@ const cell: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
+const navBtn: React.CSSProperties = {
+  background: "var(--surface2)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius)",
+  padding: "7px 14px",
+  cursor: "pointer",
+  color: "var(--text)",
+  fontSize: 18,
+  lineHeight: 1,
+};
+
 const dateInput: React.CSSProperties = {
   background: "var(--surface2)",
   border: "1px solid var(--border)",
@@ -67,20 +91,25 @@ const dateInput: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export default function TeamWeeklyTimesheet({ allEntries, members, jobs }: Props) {
-  const monday = getMondayStr();
-  const [startDate, setStartDate] = useState<string>(monday);
-  const [endDate, setEndDate] = useState<string>(getSundayStr(monday));
+export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUid, adminName }: Props) {
+  const [weekStart, setWeekStart] = useState<string>(getMondayStr());
+  const weekEnd = getSundayStr(weekStart);
 
-  const rangeDays = useMemo(() => getRangeDays(startDate, endDate), [startDate, endDate]);
-  const memberList = useMemo(() => Object.entries(members), [members]);
+  const rangeDays = useMemo(() => getRangeDays(weekStart, weekEnd), [weekStart, weekEnd]);
+
+  const memberList = useMemo(() => {
+    const list = Object.entries(members);
+    if (adminUid && adminName) {
+      return [[adminUid, { name: adminName } as TeamMember], ...list] as [string, TeamMember][];
+    }
+    return list;
+  }, [members, adminUid, adminName]);
 
   const rangeEntries = useMemo(
     () => allEntries.filter((e) => rangeDays.includes(e.date)),
     [allEntries, rangeDays]
   );
 
-  // hours[uid][dateStr] = total hours logged that day
   const hoursGrid = useMemo(() => {
     const grid: Record<string, Record<string, number>> = {};
     memberList.forEach(([uid]) => { grid[uid] = {}; });
@@ -91,7 +120,6 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs }: Props
     return grid;
   }, [rangeEntries, memberList]);
 
-  // Effective rate per worker — uses all-time approved entries for stability
   const rateData = useMemo(() => {
     const result: Record<string, { rate: number; symbol: string }> = {};
     memberList.forEach(([uid]) => {
@@ -118,36 +146,40 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs }: Props
     return result;
   }, [allEntries, memberList, jobs]);
 
+  function shiftWeek(days: number) {
+    const d = new Date(weekStart + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    setWeekStart(toDateStr(d));
+  }
+
   if (memberList.length === 0) {
     return <div className="empty-state"><p>No team members yet. Share your invite link to onboard people.</p></div>;
   }
 
   return (
     <div>
-      {/* Date range picker */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>From</span>
+      {/* Week navigation */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={() => shiftWeek(-7)} style={navBtn} aria-label="Previous week">‹</button>
+
+        <div style={{ textAlign: "center", flex: 1, minWidth: 140 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{shortDate(weekStart)} – {shortDate(weekEnd)}</div>
+          <div style={{ fontSize: 11, color: "var(--muted)" }}>
+            {new Date(weekStart + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+          </div>
+        </div>
+
+        <button onClick={() => shiftWeek(7)} style={navBtn} aria-label="Next week">›</button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+          <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>Jump to</span>
           <input
             type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            value={weekStart}
+            onChange={(e) => { if (e.target.value) setWeekStart(getMondayOfWeek(e.target.value)); }}
             style={dateInput}
           />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>To</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            style={dateInput}
-          />
-        </div>
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>
-          {rangeDays.length} day{rangeDays.length !== 1 ? "s" : ""}
-          {rangeDays.length >= 62 ? " (max)" : ""}
-        </span>
       </div>
 
       {/* Scrollable table */}
@@ -169,7 +201,6 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs }: Props
             </tr>
           </thead>
           <tbody>
-            {/* Daily rows */}
             {rangeDays.map((dateStr, i) => {
               const dayTotal = memberList.reduce((s, [uid]) => s + (hoursGrid[uid]?.[dateStr] ?? 0), 0);
               return (
@@ -199,10 +230,10 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs }: Props
               <td colSpan={memberList.length + 2} style={{ padding: 0, height: 2, background: "var(--border2)" }} />
             </tr>
 
-            {/* Total hours */}
+            {/* Weekly totals */}
             <tr>
               <td style={{ ...cell, textAlign: "left", fontWeight: 700, color: "var(--text)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.4px" }}>
-                Total
+                Weekly
               </td>
               {memberList.map(([uid]) => {
                 const total = rangeDays.reduce((s, d) => s + (hoursGrid[uid]?.[d] ?? 0), 0);
