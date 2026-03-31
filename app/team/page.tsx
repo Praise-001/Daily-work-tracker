@@ -357,10 +357,11 @@ function TeamDashboardInner() {
                   const totalHours = jobEntries.reduce((s, e) => s + e.hours, 0);
                   const pendingCount = jobEntries.filter((e) => e.status === "pending").length;
                   return (
-                    <button
+                    <div
                       key={job.id}
                       className="job-tile"
                       onClick={() => router.push(`/team/job/${job.id}`)}
+                      style={{ cursor: "pointer" }}
                     >
                       <div className="job-tile-name">{job.name}</div>
                       <div className="job-tile-amount">{job.curSymbol}{formatAmount(totalEarned)}</div>
@@ -375,7 +376,7 @@ function TeamDashboardInner() {
                       >
                         + Log My Session
                       </button>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
