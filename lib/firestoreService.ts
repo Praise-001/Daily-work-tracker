@@ -245,6 +245,12 @@ export async function removeMember(teamId: string, uid: string): Promise<void> {
   }
 }
 
+export async function setPaidPeriod(teamId: string, startDate: string, paid: boolean): Promise<void> {
+  await updateDoc(doc(db, "teams", teamId), {
+    [`paidPeriods.${startDate}`]: paid ? true : deleteField(),
+  });
+}
+
 export async function deleteJob(jobId: string): Promise<void> {
   await deleteDoc(doc(db, "jobs", jobId));
 }

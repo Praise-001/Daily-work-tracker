@@ -9,6 +9,8 @@ interface Props {
   jobs: Job[];
   adminUid?: string;
   adminName?: string;
+  paidPeriods?: Record<string, boolean>;
+  onTogglePaid?: (startDate: string, paid: boolean) => void;
 }
 
 // Local-time-safe date string (fixes UTC off-by-one in UTC+1)
@@ -73,11 +75,13 @@ const dateInput: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUid, adminName }: Props) {
+export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUid, adminName, paidPeriods, onTogglePaid }: Props) {
   const monday = getMondayStr();
   const [startDate, setStartDate] = useState<string>(monday);
   const [endDate, setEndDate] = useState<string>(getSundayStr(monday));
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
+
+  const isPaid = !!(paidPeriods?.[startDate]);
 
   const rangeDays = useMemo(() => getRangeDays(startDate, endDate), [startDate, endDate]);
 
@@ -229,8 +233,51 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
         </div>
       </div>
 
+      {/* Paid status bar */}
+      {onTogglePaid && (
+        <div
+          onClick={() => onTogglePaid(startDate, !isPaid)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 14px",
+            marginBottom: 16,
+            borderRadius: "var(--radius)",
+            cursor: "pointer",
+            background: isPaid ? "rgba(61,186,126,0.12)" : "var(--surface2)",
+            border: isPaid ? "1px solid rgba(61,186,126,0.3)" : "1px solid var(--border)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 10, height: 10, borderRadius: "50%",
+              background: isPaid ? "#3dba7e" : "var(--border2)",
+              flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: isPaid ? "#3dba7e" : "var(--muted)" }}>
+              {isPaid ? "Paid" : "Unpaid"}
+            </span>
+            {isPaid && (
+              <span style={{ fontSize: 11, color: "var(--muted)" }}>— tap to undo</span>
+            )}
+          </div>
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>
+            {isPaid ? "Mark as unpaid" : "Mark as paid"}
+          </span>
+        </div>
+      )}
+
       {/* Scrollable table */}
-      <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
+      <div style={{ position: "relative" }}>
+        {isPaid && (
+          <div aria-hidden="true" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 10 }}>
+            <span style={{ fontSize: 100, fontWeight: 900, color: "var(--gold)", opacity: 0.06, transform: "rotate(-35deg)", letterSpacing: 10, userSelect: "none", whiteSpace: "nowrap" }}>
+              PAID
+            </span>
+          </div>
+        )}
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], opacity: isPaid ? 0.45 : 1, transition: "opacity 0.25s" }}>
         <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
           <thead>
             <tr style={{ background: "var(--surface2)" }}>
@@ -347,6 +394,7 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

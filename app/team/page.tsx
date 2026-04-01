@@ -15,6 +15,7 @@ import {
   subscribeTeamJobs,
   subscribeAllTeamEntries,
   createJob,
+  setPaidPeriod,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
 import { sanitizeText, formatDate, formatAmount } from "../../lib/utils";
@@ -415,6 +416,10 @@ function TeamDashboardInner() {
               jobs={jobs}
               adminUid={user?.uid}
               adminName={name}
+              paidPeriods={team?.paidPeriods ?? {}}
+              onTogglePaid={async (startDate, paid) => {
+                await setPaidPeriod(teamId, startDate, paid);
+              }}
             />
           </div>
         )}

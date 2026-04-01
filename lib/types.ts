@@ -54,6 +54,7 @@ export interface Team {
   inviteCode: string;
   createdAt: Timestamp;
   members: Record<string, TeamMember>;
+  paidPeriods?: Record<string, boolean>;
 }
 
 export interface CurrencyInfo {
