@@ -196,6 +196,15 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
 
         {/* Date range */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => {
+              const s = new Date(startDate + "T00:00:00"); s.setDate(s.getDate() - 7);
+              const e = new Date(endDate + "T00:00:00"); e.setDate(e.getDate() - 7);
+              setStartDate(toDateStr(s)); setEndDate(toDateStr(e));
+            }}
+            style={{ padding: "6px 12px", fontSize: 16, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", cursor: "pointer", color: "var(--text)", lineHeight: 1 }}
+          >‹</button>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>From</span>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={dateInput} />
@@ -208,6 +217,15 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
             {rangeCount} day{rangeCount !== 1 ? "s" : ""}
             {rangeCount >= 62 ? " (max)" : ""}
           </span>
+          <button
+            type="button"
+            onClick={() => {
+              const s = new Date(startDate + "T00:00:00"); s.setDate(s.getDate() + 7);
+              const e = new Date(endDate + "T00:00:00"); e.setDate(e.getDate() + 7);
+              setStartDate(toDateStr(s)); setEndDate(toDateStr(e));
+            }}
+            style={{ padding: "6px 12px", fontSize: 16, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", cursor: "pointer", color: "var(--text)", lineHeight: 1 }}
+          >›</button>
         </div>
       </div>
 
