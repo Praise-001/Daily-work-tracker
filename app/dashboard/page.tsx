@@ -694,19 +694,16 @@ function DashboardInner() {
                     </svg>
                   </button>
 
-                  {/* Sessions grouped by team */}
+                  {/* Sessions for current team */}
                   {sessionsOpen && (
                     <div style={{ marginBottom: 8 }}>
-                      {teamIds.length === 0 ? (
-                        <div className="empty-state"><p>No team sessions yet.</p></div>
-                      ) : teamIds.map((tid) => {
-                        const tEntries = teamEntries.filter((e) => e.teamId === tid);
-                        const tJobs = teamJobs.filter((j) => j.teamId === tid);
+                      {!currentTeamId ? (
+                        <div className="empty-state"><p>No team selected.</p></div>
+                      ) : (() => {
+                        const tEntries = teamEntries.filter((e) => e.teamId === currentTeamId);
+                        const tJobs = teamJobs.filter((j) => j.teamId === currentTeamId);
                         return (
-                          <div key={tid} style={{ marginBottom: 20 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid var(--border)" }}>
-                              {teamMap[tid] ?? "Team"}
-                            </div>
+                          <div>
                             {tEntries.length === 0 ? (
                               <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>No sessions logged yet.</div>
                             ) : (
@@ -737,7 +734,7 @@ function DashboardInner() {
                             )}
                           </div>
                         );
-                      })}
+                      })()}
                     </div>
                   )}
                 </>
