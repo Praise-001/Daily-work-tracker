@@ -6,3 +6,5 @@ node_modules/
 tsconfig.tsbuildinfo
 nul
 .vscode/
+.vercel
+.env*.local
