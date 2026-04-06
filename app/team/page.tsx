@@ -16,6 +16,7 @@ import {
   subscribeAllTeamEntries,
   createJob,
   setPaidPeriod,
+  approveEntry,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
 import { sanitizeText, formatDate, formatAmount } from "../../lib/utils";
@@ -253,6 +254,7 @@ function TeamDashboardInner() {
   const [addJobOpen, setAddJobOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ uid: string; member: TeamMember } | null>(null);
   const [logSessionJob, setLogSessionJob] = useState<Job | null>(null);
+  const [approvingAll, setApprovingAll] = useState(false);
 
   const name = userProfile?.name ?? "";
   const teamName = userProfile?.teamName ?? team?.name ?? "Your Team";
@@ -396,13 +398,56 @@ function TeamDashboardInner() {
             {pendingEntries.length === 0 ? (
               <div className="empty-state"><p>No pending sessions. You&apos;re all caught up!</p></div>
             ) : (
-              pendingEntries.map((entry) => (
-                <SessionApprovalCard
-                  key={entry.id}
-                  entry={entry}
-                  job={jobs.find((j) => j.id === entry.jobId)}
-                />
-              ))
+              <>
+                {/* Bulk approve with default rate */}
+                {(() => {
+                  const approvable = pendingEntries.filter((e) => {
+                    const job = jobs.find((j) => j.id === e.jobId);
+                    return job?.defRate != null && job.defRate > 0;
+                  });
+                  const skipped = pendingEntries.length - approvable.length;
+                  if (approvable.length === 0) return null;
+                  return (
+                    <div className="card" style={{ padding: "14px 16px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>Apply default rate to all</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                          {approvable.length} session{approvable.length !== 1 ? "s" : ""} will be approved
+                          {skipped > 0 && ` · ${skipped} skipped (no default rate)`}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={approvingAll}
+                        onClick={async () => {
+                          setApprovingAll(true);
+                          try {
+                            await Promise.all(
+                              approvable.map((e) => {
+                                const job = jobs.find((j) => j.id === e.jobId)!;
+                                return approveEntry(e.id, e.hours * job.defRate!, job.defRate!);
+                              })
+                            );
+                          } finally {
+                            setApprovingAll(false);
+                          }
+                        }}
+                        style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: "var(--radius)", cursor: "pointer", background: "var(--gold)", border: "none", color: "#0d0d0d", whiteSpace: "nowrap" }}
+                      >
+                        {approvingAll ? "Approving…" : "Approve All"}
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {pendingEntries.map((entry) => (
+                  <SessionApprovalCard
+                    key={entry.id}
+                    entry={entry}
+                    job={jobs.find((j) => j.id === entry.jobId)}
+                  />
+                ))}
+              </>
             )}
           </div>
         )}
