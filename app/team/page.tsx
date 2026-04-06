@@ -373,7 +373,7 @@ function TeamDashboardInner() {
                       <button
                         type="button"
                         onClick={(ev) => { ev.stopPropagation(); setLogSessionJob(job); }}
-                        style={{ marginTop: 10, fontSize: 11, padding: "4px 10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", cursor: "pointer", color: "var(--muted)", width: "100%" }}
+                        style={{ marginTop: 12, fontSize: 13, fontWeight: 600, padding: "9px 12px", background: "var(--gold)", border: "none", borderRadius: "var(--radius)", cursor: "pointer", color: "#0d0d0d", width: "100%", boxShadow: "0 0 12px rgba(201,168,76,0.5)" }}
                       >
                         + Log My Session
                       </button>
