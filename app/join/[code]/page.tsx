@@ -121,6 +121,32 @@ export default function JoinPage() {
   const initial = team.name.charAt(0).toUpperCase();
   const memberCount = Object.keys(team.members).length;
   const isNewUser = user && !userProfile;
+  const isTeamAdmin = userProfile?.type === "team";
+
+  if (isTeamAdmin) {
+    return (
+      <div className="splash-page">
+        <div style={{ textAlign: "center", maxWidth: 380 }}>
+          <div className="brand-logo" style={{ width: 64, height: 64, borderRadius: 18, fontSize: 24, margin: "0 auto 20px" }}>
+            R
+          </div>
+          <h2 style={{ fontFamily: "var(--serif)", fontSize: 24, fontWeight: 400, marginBottom: 12 }}>
+            Can&apos;t join as a team admin
+          </h2>
+          <p style={{ color: "var(--muted)", fontSize: 15, lineHeight: 1.6, marginBottom: 28 }}>
+            Your account is set up as a team admin. Only personal accounts can join teams via invite link.
+          </p>
+          <button
+            className="btn btn-ghost"
+            style={{ maxWidth: 280, margin: "0 auto", display: "block" }}
+            onClick={() => router.push("/team")}
+          >
+            Go to my dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Dedicated full-screen name-entry view for brand new users
   if (isNewUser) {
