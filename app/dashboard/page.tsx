@@ -234,6 +234,9 @@ function DashboardInner() {
     if (!user) return;
     setLeavingTeam(true);
     try {
+      // Delete all entries the user logged for this team
+      const entriesToDelete = entries.filter((e) => e.teamId === teamId && e.workerUid === user.uid);
+      await Promise.all(entriesToDelete.map((e) => deleteEntry(e.id)));
       await removeMember(teamId, user.uid);
       await refreshProfile();
       setConfirmLeaveTeamId(null);
@@ -566,7 +569,7 @@ function DashboardInner() {
                   {confirmLeaveTeamId && (
                     <div className="card" style={{ padding: "16px 18px", marginBottom: 16, border: "1px solid var(--border)" }}>
                       <p style={{ fontSize: 14, marginBottom: 14 }}>
-                        Leave <strong>{teamMap[confirmLeaveTeamId] ?? "this team"}</strong>? Your session history will remain but you won&apos;t be able to log new sessions.
+                        Leave <strong>{teamMap[confirmLeaveTeamId] ?? "this team"}</strong>? All your session history for this team will be permanently deleted. This cannot be undone.
                       </p>
                       <div style={{ display: "flex", gap: 10 }}>
                         <button
