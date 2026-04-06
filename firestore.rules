@@ -77,6 +77,23 @@ service cloud.firestore {
         && resource.data.workerUid == uid()
         && !("teamId" in resource.data);
 
+      // Workers can update/delete their own pending team entries (date, hours, note only)
+      // — status must stay pending; workerUid, jobId, teamId, amount cannot be changed
+      allow update: if isAuthed()
+        && resource.data.workerUid == uid()
+        && resource.data.teamId != null
+        && resource.data.status == "pending"
+        && request.resource.data.status == "pending"
+        && request.resource.data.workerUid == resource.data.workerUid
+        && request.resource.data.jobId == resource.data.jobId
+        && request.resource.data.teamId == resource.data.teamId
+        && !("amount" in request.resource.data);
+
+      allow delete: if isAuthed()
+        && resource.data.workerUid == uid()
+        && resource.data.teamId != null
+        && resource.data.status == "pending";
+
       // Only team admin can update team entries (approve/reject)
       // — workerUid, jobId, teamId cannot be changed
       allow update: if isAuthed()
