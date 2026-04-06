@@ -72,7 +72,7 @@ export default function LogTeamSessionModal({ job, workerUid, workerName, onClos
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
             <div className="field"><label>Hours Worked</label>
-              <input type="number" placeholder="e.g. 4.5" value={hours} onChange={(e) => setHours(e.target.value)} min="0.1" step="0.1" required autoFocus />
+              <input type="number" placeholder="e.g. 4.5" value={hours} onChange={(e) => setHours(e.target.value)} min="0.001" step="0.001" required autoFocus />
             </div>
             <div className="field"><label>Note (optional)</label>
               <textarea placeholder="What did you work on?" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />

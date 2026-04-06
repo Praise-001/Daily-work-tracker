@@ -318,7 +318,7 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
                           </div>
                           <div className="field" style={{ margin: 0 }}>
                             <label style={{ fontSize: 11 }}>Hours</label>
-                            <input type="number" value={editEntryHours} onChange={(e) => setEditEntryHours(e.target.value)} min="0.1" step="0.1" required />
+                            <input type="number" value={editEntryHours} onChange={(e) => setEditEntryHours(e.target.value)} min="0.001" step="0.001" required />
                           </div>
                           <div className="field" style={{ margin: 0 }}>
                             <label style={{ fontSize: 11 }}>Rate ({currency.symbol}/{job.rateType})</label>

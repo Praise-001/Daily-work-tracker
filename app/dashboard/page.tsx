@@ -340,7 +340,7 @@ function DashboardInner() {
                           {job.curSymbol}{formatAmount(earned)}
                         </div>
                         <div className="job-tile-meta">
-                          {jobEntries.length} session{jobEntries.length !== 1 ? "s" : ""} · {hours.toFixed(1)}h
+                          {jobEntries.length} session{jobEntries.length !== 1 ? "s" : ""} · {+hours.toFixed(3)}h
                         </div>
                       </button>
                     );
@@ -432,7 +432,7 @@ function DashboardInner() {
                                     </div>
                                     <div className="field" style={{ margin: 0 }}>
                                       <label style={{ fontSize: 11 }}>Hours</label>
-                                      <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.1" step="0.1" required />
+                                      <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.001" step="0.001" required />
                                     </div>
                                     <div className="field" style={{ margin: 0 }}>
                                       <label style={{ fontSize: 11 }}>Rate ({job?.curSymbol}/{job?.rateType ?? "hr"})</label>
@@ -624,9 +624,9 @@ function DashboardInner() {
                     )}
                     {totalHours > 0 && (
                       <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", fontSize: 13, color: "var(--muted)" }}>
-                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{totalHours.toFixed(1)}h</span> total logged
+                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{+totalHours.toFixed(3)}h</span> total logged
                         {approvedHours > 0 && approvedHours !== totalHours && (
-                          <> · <span style={{ fontWeight: 600, color: "var(--text)" }}>{approvedHours.toFixed(1)}h</span> approved</>
+                          <> · <span style={{ fontWeight: 600, color: "var(--text)" }}>{+approvedHours.toFixed(3)}h</span> approved</>
                         )}
                       </div>
                     )}

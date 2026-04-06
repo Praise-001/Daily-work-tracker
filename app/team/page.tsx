@@ -186,7 +186,7 @@ function MemberDetailPanel({ uid, member, allEntries, jobs, onClose }: {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
           <div className="card" style={{ padding: "14px 16px" }}>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>{totalHours.toFixed(1)}h</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{+totalHours.toFixed(3)}h</div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>Hours worked</div>
           </div>
           <div className="card" style={{ padding: "14px 16px" }}>
@@ -199,7 +199,7 @@ function MemberDetailPanel({ uid, member, allEntries, jobs, onClose }: {
           </div>
           {pendingHours > 0 && (
             <div className="card" style={{ padding: "14px 16px", gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{pendingHours.toFixed(1)}h</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{+pendingHours.toFixed(3)}h</div>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>Pending approval</div>
             </div>
           )}
@@ -367,7 +367,7 @@ function TeamDashboardInner() {
                       <div className="job-tile-name">{job.name}</div>
                       <div className="job-tile-amount">{job.curSymbol}{formatAmount(totalEarned)}</div>
                       <div className="job-tile-meta">
-                        {totalHours.toFixed(1)}h logged
+                        {+totalHours.toFixed(3)}h logged
                         {pendingCount > 0 ? ` · ${pendingCount} pending` : ""}
                       </div>
                       <button

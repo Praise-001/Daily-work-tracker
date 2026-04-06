@@ -141,7 +141,7 @@ export default function EarningsCard({ jobs, entries, hidden, onToggleHidden }: 
                 <span style={{ fontSize: 11, color: "rgba(232,201,122,0.4)" }}>{g.code}</span>
               </div>
               <div className={`cur-group-meta${hidden ? " earnings-hidden" : ""}`}>
-                {g.sessions} session{g.sessions !== 1 ? "s" : ""} · {g.hours.toFixed(1)} hrs
+                {g.sessions} session{g.sessions !== 1 ? "s" : ""} · {+g.hours.toFixed(3)} hrs
               </div>
             </div>
           ))}

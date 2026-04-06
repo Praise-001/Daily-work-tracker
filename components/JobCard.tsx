@@ -21,7 +21,7 @@ export function JobCard({ title, currency, earned, hours, sessions, cta }: Props
           <span className="muted">Earned</span>
         </div>
         <div>
-          <strong>{hours.toFixed(1)}h</strong>
+          <strong>{+hours.toFixed(3)}h</strong>
           <span className="muted">Hours</span>
         </div>
         <div>
