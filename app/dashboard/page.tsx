@@ -11,6 +11,7 @@ import {
   subscribeUserJobs,
   subscribeUserEntries,
   subscribeTeamJobs,
+  subscribeTeam,
   createEntry,
   createJob,
   updateEntry,
@@ -125,6 +126,9 @@ function DashboardInner() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [teamMap, setTeamMap] = useState<Record<string, string>>({});
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
 
   function startEdit(entry: Entry) {
     setEditingEntry(entry);
@@ -194,6 +198,19 @@ function DashboardInner() {
         const merged: Job[] = [];
         jobsByTeam.forEach((j) => merged.push(...j));
         setTeamJobs(merged);
+      })
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [userProfile]);
+
+  // Subscribe to each team to get team names
+  useEffect(() => {
+    const teamIds = userProfile?.joinedTeams ?? [];
+    if (!teamIds.length) { setTeamMap({}); return; }
+    if (!selectedTeamId) setSelectedTeamId(teamIds[0]);
+    const unsubs = teamIds.map((tid) =>
+      subscribeTeam(tid, (team) => {
+        if (team) setTeamMap((prev) => ({ ...prev, [tid]: team.name }));
       })
     );
     return () => unsubs.forEach((u) => u());
@@ -451,145 +468,216 @@ function DashboardInner() {
 
         {tab === "myteam" && (
           <div className="page-content">
-            {/* Team Earnings Summary */}
             {(() => {
-              const approvedTeamEarnings: Record<string, { symbol: string; total: number }> = {};
-              teamEntries
+              const teamIds = userProfile?.joinedTeams ?? [];
+              const currentTeamId = selectedTeamId ?? teamIds[0] ?? null;
+              const currentTeamEntries = teamEntries.filter((e) => e.teamId === currentTeamId);
+              const currentTeamJobs = teamJobs.filter((j) => j.teamId === currentTeamId);
+
+              // Earnings for current team
+              const approvedEarnings: Record<string, { symbol: string; total: number }> = {};
+              currentTeamEntries
                 .filter((e) => e.status === "approved" && e.amount != null)
                 .forEach((e) => {
-                  const job = teamJobs.find((j) => j.id === e.jobId);
+                  const job = currentTeamJobs.find((j) => j.id === e.jobId);
                   const cur = job?.cur ?? "?";
-                  if (!approvedTeamEarnings[cur]) {
-                    approvedTeamEarnings[cur] = { symbol: job?.curSymbol ?? "", total: 0 };
-                  }
-                  approvedTeamEarnings[cur].total += e.amount ?? 0;
+                  if (!approvedEarnings[cur]) approvedEarnings[cur] = { symbol: job?.curSymbol ?? "", total: 0 };
+                  approvedEarnings[cur].total += e.amount ?? 0;
                 });
-              const approvedCurrencies = Object.entries(approvedTeamEarnings);
-              const pendingCount = teamEntries.filter((e) => e.status === "pending").length;
-              const totalTeamHours = teamEntries.reduce((s, e) => s + e.hours, 0);
-              const approvedTeamHours = teamEntries.filter((e) => e.status === "approved").reduce((s, e) => s + e.hours, 0);
+              const approvedCurrencies = Object.entries(approvedEarnings);
+              const pendingCount = currentTeamEntries.filter((e) => e.status === "pending").length;
+              const totalHours = currentTeamEntries.reduce((s, e) => s + e.hours, 0);
+              const approvedHours = currentTeamEntries.filter((e) => e.status === "approved").reduce((s, e) => s + e.hours, 0);
               const pendingEstByCur: Record<string, { symbol: string; total: number }> = {};
-              teamEntries.filter((e) => e.status === "pending").forEach((e) => {
-                const job = teamJobs.find((j) => j.id === e.jobId);
+              currentTeamEntries.filter((e) => e.status === "pending").forEach((e) => {
+                const job = currentTeamJobs.find((j) => j.id === e.jobId);
                 if (!job?.defRate) return;
                 if (!pendingEstByCur[job.cur]) pendingEstByCur[job.cur] = { symbol: job.curSymbol, total: 0 };
                 pendingEstByCur[job.cur].total += e.hours * job.defRate;
               });
               const pendingEstEntries = Object.entries(pendingEstByCur);
+
               return (
-                <div className="card" style={{ padding: "18px 20px", marginBottom: 20 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase" }}>Team Earnings</span>
-                    <button
-                      type="button"
-                      onClick={() => setEarningsHidden((v) => !v)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}
-                      aria-label={earningsHidden ? "Show earnings" : "Hide earnings"}
-                    >
-                      {earningsHidden ? (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                      ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      )}
-                    </button>
-                  </div>
-                  {approvedCurrencies.length === 0 ? (
-                    <div style={{ fontSize: 13, color: "var(--muted)" }}>No approved earnings yet.</div>
-                  ) : (
-                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-                      {approvedCurrencies.map(([cur, { symbol, total }]) => (
-                        <div key={cur}>
-                          <div className={`eearned${earningsHidden ? " earnings-hidden" : ""}`} style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.1 }}>
-                            {symbol}{formatAmount(total)}
+                <>
+                  {/* Team tabs — only shown when in multiple teams */}
+                  {teamIds.length > 1 && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                      {teamIds.map((tid) => (
+                        <button
+                          key={tid}
+                          type="button"
+                          onClick={() => setSelectedTeamId(tid)}
+                          style={{
+                            padding: "7px 16px", fontSize: 13, borderRadius: 99, cursor: "pointer",
+                            background: currentTeamId === tid ? "var(--gold)" : "var(--surface2)",
+                            color: currentTeamId === tid ? "#0d0d0d" : "var(--muted)",
+                            border: currentTeamId === tid ? "none" : "1px solid var(--border)",
+                            fontWeight: currentTeamId === tid ? 600 : 400,
+                          }}
+                        >
+                          {teamMap[tid] ?? "Team"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {teamIds.length === 1 && teamMap[teamIds[0]] && (
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase", marginBottom: 14 }}>
+                      {teamMap[teamIds[0]]}
+                    </div>
+                  )}
+
+                  {/* Team Earnings card */}
+                  <div className="card" style={{ padding: "18px 20px", marginBottom: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase" }}>Team Earnings</span>
+                      <button
+                        type="button"
+                        onClick={() => setEarningsHidden((v) => !v)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}
+                        aria-label={earningsHidden ? "Show earnings" : "Hide earnings"}
+                      >
+                        {earningsHidden ? (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        ) : (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        )}
+                      </button>
+                    </div>
+                    {approvedCurrencies.length === 0 ? (
+                      <div style={{ fontSize: 13, color: "var(--muted)" }}>No approved earnings yet.</div>
+                    ) : (
+                      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                        {approvedCurrencies.map(([cur, { symbol, total }]) => (
+                          <div key={cur}>
+                            <div className={`eearned${earningsHidden ? " earnings-hidden" : ""}`} style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.1 }}>
+                              {symbol}{formatAmount(total)}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>{cur}</div>
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>{cur}</div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )}
+                    {totalHours > 0 && (
+                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", fontSize: 13, color: "var(--muted)" }}>
+                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{totalHours.toFixed(1)}h</span> total logged
+                        {approvedHours > 0 && approvedHours !== totalHours && (
+                          <> · <span style={{ fontWeight: 600, color: "var(--text)" }}>{approvedHours.toFixed(1)}h</span> approved</>
+                        )}
+                      </div>
+                    )}
+                    {pendingEstEntries.length > 0 && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
+                        Est. from pending:{" "}
+                        {pendingEstEntries.map(([cur, { symbol, total }], i) => (
+                          <span key={cur}>{i > 0 ? " · " : ""}<span style={{ fontWeight: 500 }}>{symbol}{formatAmount(total)}</span> {cur}</span>
+                        ))}
+                      </div>
+                    )}
+                    {pendingCount > 0 && (
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        {pendingCount} session{pendingCount !== 1 ? "s" : ""} pending approval
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Team Jobs for current team */}
+                  {currentTeamJobs.length > 0 && (
+                    <>
+                      <div className="section-header" style={{ marginTop: 4 }}>
+                        <h3>Team Jobs</h3>
+                      </div>
+                      <div className="job-grid" style={{ marginBottom: 24 }}>
+                        {currentTeamJobs.map((job) => (
+                          <button
+                            key={job.id}
+                            className="job-tile"
+                            onClick={() => setLogTeamJob(job)}
+                          >
+                            <div className="job-tile-name">{job.name}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                              {job.curSymbol} · {job.rateType === "hour" ? "Per hour" : "Per day"}
+                            </div>
+                            <div className="job-tile-meta" style={{ color: "var(--gold)", marginTop: 6 }}>
+                              Tap to log session
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* My Sessions toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setSessionsOpen((v) => !v)}
+                    style={{
+                      width: "100%", padding: "12px 16px", fontSize: 14, fontWeight: 600,
+                      background: sessionsOpen ? "var(--surface2)" : "var(--surface2)",
+                      border: "1px solid var(--border)", borderRadius: "var(--radius)",
+                      cursor: "pointer", color: "var(--text)",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      marginBottom: sessionsOpen ? 12 : 0,
+                    }}
+                  >
+                    <span>My Sessions</span>
+                    <svg
+                      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ transform: sessionsOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                    >
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+
+                  {/* Sessions grouped by team */}
+                  {sessionsOpen && (
+                    <div style={{ marginBottom: 8 }}>
+                      {teamIds.length === 0 ? (
+                        <div className="empty-state"><p>No team sessions yet.</p></div>
+                      ) : teamIds.map((tid) => {
+                        const tEntries = teamEntries.filter((e) => e.teamId === tid);
+                        const tJobs = teamJobs.filter((j) => j.teamId === tid);
+                        return (
+                          <div key={tid} style={{ marginBottom: 20 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid var(--border)" }}>
+                              {teamMap[tid] ?? "Team"}
+                            </div>
+                            {tEntries.length === 0 ? (
+                              <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>No sessions logged yet.</div>
+                            ) : (
+                              <div className="card" style={{ padding: "0 0 4px" }}>
+                                {tEntries.map((e) => {
+                                  const job = tJobs.find((j) => j.id === e.jobId);
+                                  const { day, date } = formatDate(e.date);
+                                  return (
+                                    <div key={e.id} className="team-entry-row">
+                                      <div className="team-entry-left">
+                                        <h4>{job?.name ?? "Team Job"}</h4>
+                                        <p>{day} {date} · {e.hours}h</p>
+                                      </div>
+                                      <div className="team-entry-right">
+                                        {e.status === "approved" && e.amount != null ? (
+                                          <div className={`team-entry-amount${earningsHidden ? " earnings-hidden" : ""}`}>
+                                            {job?.curSymbol ?? ""}{formatAmount(e.amount)}
+                                          </div>
+                                        ) : (
+                                          <div className="team-entry-amount pending">Pending</div>
+                                        )}
+                                        <span className={`status-badge ${e.status}`}>{e.status}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                  {totalTeamHours > 0 && (
-                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", fontSize: 13, color: "var(--muted)" }}>
-                      <span style={{ fontWeight: 600, color: "var(--text)" }}>{totalTeamHours.toFixed(1)}h</span> total logged
-                      {approvedTeamHours > 0 && approvedTeamHours !== totalTeamHours && (
-                        <> · <span style={{ fontWeight: 600, color: "var(--text)" }}>{approvedTeamHours.toFixed(1)}h</span> approved</>
-                      )}
-                    </div>
-                  )}
-                  {pendingEstEntries.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
-                      Est. from pending:{" "}
-                      {pendingEstEntries.map(([cur, { symbol, total }], i) => (
-                        <span key={cur}>{i > 0 ? " · " : ""}<span style={{ fontWeight: 500 }}>{symbol}{formatAmount(total)}</span> {cur}</span>
-                      ))}
-                    </div>
-                  )}
-                  {pendingCount > 0 && (
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      {pendingCount} session{pendingCount !== 1 ? "s" : ""} pending approval
-                    </div>
-                  )}
-                </div>
+                </>
               );
             })()}
-
-            {/* Team Jobs */}
-            {teamJobs.length > 0 && (
-              <>
-                <div className="section-header" style={{ marginTop: 4 }}>
-                  <h3>Team Jobs</h3>
-                </div>
-                <div className="job-grid" style={{ marginBottom: 24 }}>
-                  {teamJobs.map((job) => (
-                    <button
-                      key={job.id}
-                      className="job-tile"
-                      onClick={() => setLogTeamJob(job)}
-                    >
-                      <div className="job-tile-name">{job.name}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        {job.curSymbol} · {job.rateType === "hour" ? "Per hour" : "Per day"}
-                      </div>
-                      <div className="job-tile-meta" style={{ color: "var(--gold)", marginTop: 6 }}>
-                        Tap to log session
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* My Team Sessions */}
-            <div className="section-header" style={{ marginTop: teamJobs.length > 0 ? 0 : 4 }}>
-              <h3>My Sessions</h3>
-            </div>
-            {teamEntries.length === 0 ? (
-              <div className="empty-state"><p>No team sessions yet. Log a session from a team job above.</p></div>
-            ) : (
-              <div className="card" style={{ padding: "0 0 4px" }}>
-                {teamEntries.map((e) => {
-                  const job = teamJobs.find((j) => j.id === e.jobId);
-                  const { day, date } = formatDate(e.date);
-                  return (
-                    <div key={e.id} className="team-entry-row">
-                      <div className="team-entry-left">
-                        <h4>{job?.name ?? "Team Job"}</h4>
-                        <p>{day} {date} · {e.hours}h</p>
-                      </div>
-                      <div className="team-entry-right">
-                        {e.status === "approved" && e.amount != null ? (
-                          <div className={`team-entry-amount${earningsHidden ? " earnings-hidden" : ""}`}>
-                            {job?.curSymbol ?? ""}{formatAmount(e.amount)}
-                          </div>
-                        ) : (
-                          <div className="team-entry-amount pending">Pending</div>
-                        )}
-                        <span className={`status-badge ${e.status}`}>{e.status}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
       </div>
