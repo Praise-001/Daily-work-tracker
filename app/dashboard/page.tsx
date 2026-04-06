@@ -12,6 +12,7 @@ import {
   subscribeUserEntries,
   subscribeTeamJobs,
   subscribeTeam,
+  removeMember,
   createEntry,
   createJob,
   updateEntry,
@@ -129,6 +130,8 @@ function DashboardInner() {
   const [teamMap, setTeamMap] = useState<Record<string, string>>({});
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [confirmLeaveTeamId, setConfirmLeaveTeamId] = useState<string | null>(null);
+  const [leavingTeam, setLeavingTeam] = useState(false);
 
   function startEdit(entry: Entry) {
     setEditingEntry(entry);
@@ -225,6 +228,21 @@ function DashboardInner() {
   function handleSignOut() {
     refreshProfile().catch(() => {});
     router.replace("/");
+  }
+
+  async function handleLeaveTeam(teamId: string) {
+    if (!user) return;
+    setLeavingTeam(true);
+    try {
+      await removeMember(teamId, user.uid);
+      await refreshProfile();
+      setConfirmLeaveTeamId(null);
+      if (selectedTeamId === teamId) setSelectedTeamId(null);
+    } catch {
+      // silently ignore — user stays on page
+    } finally {
+      setLeavingTeam(false);
+    }
   }
 
   const personalEntries = entries.filter((e) => !e.teamId);
@@ -501,7 +519,7 @@ function DashboardInner() {
                 <>
                   {/* Team tabs — only shown when in multiple teams */}
                   {teamIds.length > 1 && (
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 20 }}>
                       {teamIds.map((tid) => (
                         <button
                           key={tid}
@@ -518,11 +536,55 @@ function DashboardInner() {
                           {teamMap[tid] ?? "Team"}
                         </button>
                       ))}
+                      {currentTeamId && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmLeaveTeamId(currentTeamId)}
+                          style={{ marginLeft: "auto", fontSize: 12, padding: "5px 12px", borderRadius: 99, cursor: "pointer", background: "none", border: "1px solid var(--border)", color: "var(--muted)" }}
+                        >
+                          Leave team
+                        </button>
+                      )}
                     </div>
                   )}
-                  {teamIds.length === 1 && teamMap[teamIds[0]] && (
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase", marginBottom: 14 }}>
-                      {teamMap[teamIds[0]]}
+                  {teamIds.length === 1 && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase" }}>
+                        {teamMap[teamIds[0]] ?? "My Team"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmLeaveTeamId(teamIds[0])}
+                        style={{ fontSize: 12, padding: "4px 12px", borderRadius: 99, cursor: "pointer", background: "none", border: "1px solid var(--border)", color: "var(--muted)" }}
+                      >
+                        Leave team
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Leave team confirmation */}
+                  {confirmLeaveTeamId && (
+                    <div className="card" style={{ padding: "16px 18px", marginBottom: 16, border: "1px solid var(--border)" }}>
+                      <p style={{ fontSize: 14, marginBottom: 14 }}>
+                        Leave <strong>{teamMap[confirmLeaveTeamId] ?? "this team"}</strong>? Your session history will remain but you won&apos;t be able to log new sessions.
+                      </p>
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmLeaveTeamId(null)}
+                          style={{ flex: 1, padding: "8px", fontSize: 13, borderRadius: "var(--radius)", cursor: "pointer", background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={leavingTeam}
+                          onClick={() => handleLeaveTeam(confirmLeaveTeamId)}
+                          style={{ flex: 1, padding: "8px", fontSize: 13, fontWeight: 600, borderRadius: "var(--radius)", cursor: "pointer", background: "#c0392b", border: "none", color: "#fff" }}
+                        >
+                          {leavingTeam ? "Leaving…" : "Leave Team"}
+                        </button>
+                      </div>
                     </div>
                   )}
 
