@@ -246,7 +246,7 @@ function DashboardInner() {
     try {
       // Delete all entries the user logged for this team
       const entriesToDelete = entries.filter((e) => e.teamId === teamId && e.workerUid === user.uid);
-      await Promise.all(entriesToDelete.map((e) => deleteEntry(e.id)));
+      await Promise.allSettled(entriesToDelete.map((e) => deleteEntry(e.id)));
       await removeMember(teamId, user.uid);
       await refreshProfile();
       setConfirmLeaveTeamId(null);

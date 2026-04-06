@@ -91,8 +91,7 @@ service cloud.firestore {
 
       allow delete: if isAuthed()
         && resource.data.workerUid == uid()
-        && resource.data.teamId != null
-        && resource.data.status == "pending";
+        && resource.data.teamId != null;
 
       // Only team admin can update team entries (approve/reject)
       // — workerUid, jobId, teamId cannot be changed
