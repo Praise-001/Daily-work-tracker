@@ -147,17 +147,27 @@ function DashboardInner() {
     if (!editingEntry) return;
     const hours = parseFloat(editHours);
     if (isNaN(hours) || hours <= 0) { setEditError("Enter valid hours."); return; }
-    const rate = editRate ? parseFloat(editRate) : (editingEntry.rate ?? 0);
     setEditSaving(true);
     setEditError("");
     try {
-      await updateEntry(editingEntry.id, {
-        date: editDate,
-        hours,
-        rate,
-        amount: hours * rate,
-        ...(editNote.trim() ? { note: sanitizeText(editNote, 300) } : {}),
-      });
+      const isTeamEntry = !!editingEntry.teamId;
+      if (isTeamEntry) {
+        // Team entries: only update date, hours, note — admin controls rate/amount
+        await updateEntry(editingEntry.id, {
+          date: editDate,
+          hours,
+          ...(editNote.trim() ? { note: sanitizeText(editNote, 300) } : {}),
+        });
+      } else {
+        const rate = editRate ? parseFloat(editRate) : (editingEntry.rate ?? 0);
+        await updateEntry(editingEntry.id, {
+          date: editDate,
+          hours,
+          rate,
+          amount: hours * rate,
+          ...(editNote.trim() ? { note: sanitizeText(editNote, 300) } : {}),
+        });
+      }
       setEditingEntry(null);
     } catch (err) {
       console.error("updateEntry failed:", err);
