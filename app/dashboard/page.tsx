@@ -711,22 +711,65 @@ function DashboardInner() {
                                 {tEntries.map((e) => {
                                   const job = tJobs.find((j) => j.id === e.jobId);
                                   const { day, date } = formatDate(e.date);
+                                  const isEditing = editingEntry?.id === e.id;
+                                  const isConfirmDel = confirmDeleteId === e.id;
                                   return (
-                                    <div key={e.id} className="team-entry-row">
-                                      <div className="team-entry-left">
-                                        <h4>{job?.name ?? "Team Job"}</h4>
-                                        <p>{day} {date} · {e.hours}h</p>
-                                      </div>
-                                      <div className="team-entry-right">
-                                        {e.status === "approved" && e.amount != null ? (
-                                          <div className={`team-entry-amount${earningsHidden ? " earnings-hidden" : ""}`}>
-                                            {job?.curSymbol ?? ""}{formatAmount(e.amount)}
+                                    <div key={e.id} className="ecard" style={{ borderRadius: 0, border: "none", borderBottom: "1px solid var(--border)" }}>
+                                      {isEditing ? (
+                                        <form onSubmit={handleSaveEdit} className="form" style={{ gap: 10 }}>
+                                          {editError && <div className="message message-error" style={{ fontSize: 12 }}>{editError}</div>}
+                                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                            <div className="field" style={{ margin: 0 }}>
+                                              <label style={{ fontSize: 11 }}>Date</label>
+                                              <input type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} required />
+                                            </div>
+                                            <div className="field" style={{ margin: 0 }}>
+                                              <label style={{ fontSize: 11 }}>Hours</label>
+                                              <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.001" step="0.001" required />
+                                            </div>
+                                            <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                                              <label style={{ fontSize: 11 }}>Note</label>
+                                              <textarea value={editNote} onChange={(ev) => setEditNote(ev.target.value)} maxLength={300} rows={2} />
+                                            </div>
                                           </div>
-                                        ) : (
-                                          <div className="team-entry-amount pending">Pending</div>
-                                        )}
-                                        <span className={`status-badge ${e.status}`}>{e.status}</span>
-                                      </div>
+                                          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => setEditingEntry(null)}>Cancel</button>
+                                            <button type="submit" className="btn btn-primary" style={{ flex: 1, fontSize: 13 }} disabled={editSaving}>{editSaving ? "Saving…" : "Save"}</button>
+                                          </div>
+                                        </form>
+                                      ) : (
+                                        <>
+                                          <div className="etop">
+                                            <div className="edate-wrap">
+                                              <span className="eday">{day}</span>
+                                              <span className="edate-txt">{date}</span>
+                                            </div>
+                                            {e.status === "approved" && e.amount != null ? (
+                                              <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`}>
+                                                {job?.curSymbol ?? ""}{formatAmount(e.amount)}
+                                              </span>
+                                            ) : (
+                                              <span style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Pending</span>
+                                            )}
+                                          </div>
+                                          {job && <span className="ejob-tag">{job.name}</span>}
+                                          {e.note && <div className="enote">{e.note}</div>}
+                                          <div className="emeta">{e.hours}h · <span className={`status-badge ${e.status}`}>{e.status}</span></div>
+                                          {e.status === "pending" && (
+                                            isConfirmDel ? (
+                                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                                <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                                                <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12, background: "#e05454", borderColor: "#e05454" }} onClick={() => handleDeleteEntry(e.id)} disabled={deletingId === e.id}>{deletingId === e.id ? "…" : "Delete"}</button>
+                                              </div>
+                                            ) : (
+                                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                                <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => startEdit(e)}>Edit</button>
+                                                <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12, color: "#e05454" }} onClick={() => setConfirmDeleteId(e.id)}>Delete</button>
+                                              </div>
+                                            )
+                                          )}
+                                        </>
+                                      )}
                                     </div>
                                   );
                                 })}
