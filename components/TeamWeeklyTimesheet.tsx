@@ -133,7 +133,7 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
     return allEntries.filter((e) => {
       const inRange = rangeDays.includes(e.date);
       const inJob = selectedJobId === "all" || e.jobId === selectedJobId;
-      return inRange && inJob;
+      return inRange && inJob && e.status === "approved";
     });
   }, [allEntries, rangeDays, selectedJobId]);
 

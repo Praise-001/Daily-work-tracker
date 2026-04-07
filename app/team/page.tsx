@@ -257,12 +257,16 @@ function TeamDashboardInner() {
   const [selectedMember, setSelectedMember] = useState<{ uid: string; member: TeamMember } | null>(null);
   const [logSessionJob, setLogSessionJob] = useState<Job | null>(null);
   const [approvingAll, setApprovingAll] = useState(false);
+  const [mySessOpen, setMySessOpen] = useState(false);
 
   const name = userProfile?.name ?? "";
   const teamName = userProfile?.teamName ?? team?.name ?? "Your Team";
 
   // Derive pending entries from all entries
   const pendingEntries = allEntries.filter((e) => e.status === "pending");
+  const myEntries = allEntries
+    .filter((e) => e.workerUid === user?.uid)
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Redirect non-team users away
   useEffect(() => {
@@ -346,6 +350,54 @@ function TeamDashboardInner() {
         {tab === "overview" && (
           <div className="page-content">
             {team && <InviteLinkBox inviteCode={team.inviteCode} />}
+
+            {/* My Sessions */}
+            <div style={{ marginBottom: 24 }}>
+              <button
+                type="button"
+                onClick={() => setMySessOpen((v) => !v)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
+              >
+                <span style={{ fontFamily: "var(--serif)", fontSize: 17, fontWeight: 400 }}>My Sessions</span>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                  {myEntries.length} {mySessOpen ? "▾" : "▸"}
+                </span>
+              </button>
+              {mySessOpen && (
+                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {myEntries.length === 0 ? (
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>No sessions logged yet.</div>
+                  ) : (
+                    myEntries.map((entry) => {
+                      const job = jobs.find((j) => j.id === entry.jobId);
+                      return (
+                        <div key={entry.id} style={{ background: "var(--surface2)", borderRadius: "var(--radius)", padding: "12px 14px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                            <div>
+                              <div style={{ fontWeight: 500, fontSize: 14 }}>{job?.name ?? "—"}</div>
+                              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                                {entry.date} · {+entry.hours.toFixed(3)}h
+                                {entry.note && <> · {entry.note.slice(0, 60)}{entry.note.length > 60 ? "…" : ""}</>}
+                              </div>
+                            </div>
+                            <span style={{
+                              fontSize: 11, padding: "2px 8px", borderRadius: 99, flexShrink: 0,
+                              background: entry.status === "approved" ? "rgba(61,186,126,0.15)" : "rgba(212,175,55,0.15)",
+                              color: entry.status === "approved" ? "#3dba7e" : "var(--gold)",
+                            }}>
+                              {entry.status === "approved"
+                                ? entry.amount != null ? `${job?.curSymbol ?? ""}${formatAmount(entry.amount)}` : "approved"
+                                : "pending"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="section-header">
               <h3>Team Jobs</h3>
               <button className="btn-add-small" onClick={() => setAddJobOpen(true)}>
@@ -407,7 +459,7 @@ function TeamDashboardInner() {
                 {(() => {
                   const approvable = pendingEntries.filter((e) => {
                     const job = jobs.find((j) => j.id === e.jobId);
-                    return job?.defRate != null && job.defRate > 0;
+                    return (job?.memberRates?.[e.workerUid] ?? job?.defRate) != null;
                   });
                   const skipped = pendingEntries.length - approvable.length;
                   if (approvable.length === 0) return null;
@@ -429,7 +481,8 @@ function TeamDashboardInner() {
                             await Promise.all(
                               approvable.map((e) => {
                                 const job = jobs.find((j) => j.id === e.jobId)!;
-                                return approveEntry(e.id, e.hours * job.defRate!, job.defRate!);
+                                const rate = job.memberRates?.[e.workerUid] ?? job.defRate!;
+                                return approveEntry(e.id, e.hours * rate, rate);
                               })
                             );
                           } finally {

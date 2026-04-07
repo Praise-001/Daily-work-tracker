@@ -12,7 +12,8 @@ interface Props {
 export default function SessionApprovalCard({ entry, job }: Props) {
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
-  const [rateInput, setRateInput] = useState(job?.defRate?.toString() ?? "");
+  const memberRate = job?.memberRates?.[entry.workerUid];
+  const [rateInput, setRateInput] = useState((memberRate ?? job?.defRate)?.toString() ?? "");
   const [showApproveForm, setShowApproveForm] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");

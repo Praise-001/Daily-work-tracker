@@ -245,6 +245,12 @@ export async function removeMember(teamId: string, uid: string): Promise<void> {
   }
 }
 
+export async function setMemberRate(jobId: string, memberUid: string, rate: number | null): Promise<void> {
+  await updateDoc(doc(db, "jobs", jobId), {
+    [`memberRates.${memberUid}`]: rate != null && rate > 0 ? rate : deleteField(),
+  });
+}
+
 export async function setPaidPeriod(teamId: string, startDate: string, paid: boolean): Promise<void> {
   await updateDoc(doc(db, "teams", teamId), {
     [`paidPeriods.${startDate}`]: paid ? true : deleteField(),

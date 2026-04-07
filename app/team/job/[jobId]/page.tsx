@@ -10,6 +10,7 @@ import {
   subscribeTeam,
   updateJob,
   removeMember,
+  setMemberRate,
 } from "../../../../lib/firestoreService";
 import { getCurrencyByCode } from "../../../../lib/currencies";
 import { formatDate, formatAmount, sanitizeText } from "../../../../lib/utils";
@@ -28,7 +29,7 @@ function TeamJobDetailInner() {
   const router = useRouter();
   const params = useParams<{ jobId: string }>();
   const jobId = params?.jobId ?? "";
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const [job, setJob] = useState<Job | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -45,6 +46,10 @@ function TeamJobDetailInner() {
   // Remove member state
   const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+
+  // Per-member rate state
+  const [memberRateInputs, setMemberRateInputs] = useState<Record<string, string>>({});
+  const [savingRateUid, setSavingRateUid] = useState<string | null>(null);
 
   // Redirect non-team users
   useEffect(() => {
@@ -144,6 +149,24 @@ function TeamJobDetailInner() {
   const pendingCount = entries.filter((e) => e.status === "pending").length;
 
   const teamMembers = Object.entries(team?.members ?? {});
+
+  // Admin is not in team.members — prepend them so they can also set their own rate
+  const allMembersForRate = useMemo(() => {
+    const adminEntry: [string, { name: string }][] =
+      user && userProfile ? [[user.uid, { name: `${userProfile.name} (you)` }]] : [];
+    return [...adminEntry, ...teamMembers];
+  }, [user, userProfile, teamMembers]);
+
+  // Initialise rate inputs from stored memberRates whenever job changes
+  useEffect(() => {
+    if (!job) return;
+    const init: Record<string, string> = {};
+    allMembersForRate.forEach(([uid]) => {
+      init[uid] = job.memberRates?.[uid]?.toString() ?? "";
+    });
+    setMemberRateInputs(init);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.id]);
 
   if (loading) {
     return <div className="loading-screen"><div className="spinner" /></div>;
@@ -261,8 +284,8 @@ function TeamJobDetailInner() {
             )}
           </div>
 
-          {/* Members — always shown, all team members */}
-          {teamMembers.length > 0 && (
+          {/* Members — admin (you) + all team members, each with individual rate */}
+          {allMembersForRate.length > 0 && (
             <>
               <div className="section-header" style={{ marginBottom: 12 }}>
                 <h3>Members</h3>
@@ -271,64 +294,104 @@ function TeamJobDetailInner() {
                 </span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
-                {teamMembers
-                  .sort((a, b) => (workerStats[b[0]]?.totalHours ?? 0) - (workerStats[a[0]]?.totalHours ?? 0))
+                {allMembersForRate
+                  .sort(([aUid, aM], [bUid]) => {
+                    // Admin always first, then sort workers by total hours
+                    if (aUid === user?.uid) return -1;
+                    if (bUid === user?.uid) return 1;
+                    return (workerStats[bUid]?.totalHours ?? 0) - (workerStats[aUid]?.totalHours ?? 0);
+                  })
                   .map(([uid, member]) => {
                     const stats = workerStats[uid] ?? { totalHours: 0, approvedAmount: 0, pendingHours: 0 };
+                    const isAdmin = uid === user?.uid;
                     const isConfirming = removingUid === uid;
                     return (
-                      <div key={uid} className="card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                        <div className="member-avatar" style={{ width: 40, height: 40, fontSize: 16, flexShrink: 0 }}>
-                          {member.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 2 }}>{member.name}</div>
-                          <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                            {stats.totalHours > 0
-                              ? `${+stats.totalHours.toFixed(3)}h logged${stats.pendingHours > 0 ? ` · ${+stats.pendingHours.toFixed(3)}h pending` : ""}`
-                              : "No sessions yet"}
+                      <div key={uid} className="card" style={{ padding: "14px 16px" }}>
+                        {/* Top row: avatar | name+stats | earnings/remove */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div className="member-avatar" style={{ width: 40, height: 40, fontSize: 16, flexShrink: 0 }}>
+                            {member.name.charAt(0).toUpperCase()}
                           </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 2 }}>{member.name}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                              {stats.totalHours > 0
+                                ? `${+stats.totalHours.toFixed(3)}h logged${stats.pendingHours > 0 ? ` · ${+stats.pendingHours.toFixed(3)}h pending` : ""}`
+                                : "No sessions yet"}
+                            </div>
+                          </div>
+
+                          {/* Earnings / remove (workers only) */}
+                          {!isAdmin && (
+                            isConfirming ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                <span style={{ fontSize: 12, color: "var(--muted)" }}>Remove?</span>
+                                <button
+                                  onClick={() => handleRemoveMember(uid)}
+                                  disabled={removing}
+                                  style={{ fontSize: 12, fontWeight: 600, color: "#e55", background: "none", border: "1px solid #e55", borderRadius: "var(--radius)", padding: "3px 10px", cursor: "pointer" }}
+                                >
+                                  {removing ? "…" : "Confirm"}
+                                </button>
+                                <button
+                                  onClick={() => setRemovingUid(null)}
+                                  style={{ fontSize: 12, color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                                <div style={{ textAlign: "right" }}>
+                                  {stats.approvedAmount > 0 ? (
+                                    <div style={{ fontSize: 16, fontWeight: 600 }}>
+                                      {currency?.symbol}{formatAmount(stats.approvedAmount)}
+                                    </div>
+                                  ) : stats.pendingHours > 0 ? (
+                                    <span className="status-badge pending">Pending</span>
+                                  ) : (
+                                    <span style={{ fontSize: 13, color: "var(--muted)" }}>—</span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => setRemovingUid(uid)}
+                                  style={{ fontSize: 11, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            )
+                          )}
                         </div>
 
-                        {/* Earnings / confirmation */}
-                        {isConfirming ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                            <span style={{ fontSize: 12, color: "var(--muted)" }}>Remove?</span>
-                            <button
-                              onClick={() => handleRemoveMember(uid)}
-                              disabled={removing}
-                              style={{ fontSize: 12, fontWeight: 600, color: "#e55", background: "none", border: "1px solid #e55", borderRadius: "var(--radius)", padding: "3px 10px", cursor: "pointer" }}
-                            >
-                              {removing ? "…" : "Confirm"}
-                            </button>
-                            <button
-                              onClick={() => setRemovingUid(null)}
-                              style={{ fontSize: 12, color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                            <div style={{ textAlign: "right" }}>
-                              {stats.approvedAmount > 0 ? (
-                                <div style={{ fontSize: 16, fontWeight: 600 }}>
-                                  {currency?.symbol}{formatAmount(stats.approvedAmount)}
-                                </div>
-                              ) : stats.pendingHours > 0 ? (
-                                <span className="status-badge pending">Pending</span>
-                              ) : (
-                                <span style={{ fontSize: 13, color: "var(--muted)" }}>—</span>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => setRemovingUid(uid)}
-                              style={{ fontSize: 11, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
+                        {/* Rate input row */}
+                        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>Rate</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder={job?.defRate ? `Default ${job.defRate}` : "Not set"}
+                            value={memberRateInputs[uid] ?? ""}
+                            onChange={(ev) => setMemberRateInputs((prev) => ({ ...prev, [uid]: ev.target.value }))}
+                            style={{ width: 90, fontSize: 12, padding: "5px 8px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", color: "var(--text)", fontFamily: "inherit" }}
+                          />
+                          <span style={{ fontSize: 11, color: "var(--muted)" }}>/{job?.rateType ?? "hr"}</span>
+                          <button
+                            type="button"
+                            disabled={savingRateUid === uid}
+                            onClick={async () => {
+                              if (!job) return;
+                              setSavingRateUid(uid);
+                              const val = parseFloat(memberRateInputs[uid] ?? "");
+                              await setMemberRate(job.id, uid, isNaN(val) ? null : val);
+                              setSavingRateUid(null);
+                            }}
+                            style={{ fontSize: 11, padding: "5px 12px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", cursor: "pointer", color: "var(--text)", fontFamily: "inherit" }}
+                          >
+                            {savingRateUid === uid ? "…" : "Save"}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

@@ -22,6 +22,7 @@ export interface Job {
   curSymbol: string;
   rateType: RateType;
   defRate?: number;
+  memberRates?: Record<string, number>;
   ownerUid: string;
   teamId?: string;
   createdAt: Timestamp;
