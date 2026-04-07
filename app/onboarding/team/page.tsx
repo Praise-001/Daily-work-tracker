@@ -50,7 +50,6 @@ export default function TeamOnboarding() {
       const { teamId } = await createTeam(user.uid, tName);
       await createUserProfile(user.uid, { name, type: "team", teamName: tName });
       await updateUserProfile(user.uid, { adminTeamId: teamId });
-
       // Create first job if provided
       if (!skipJob && jobName.trim().length >= 2) {
         const currency = getCurrencyByCode(jobCur);

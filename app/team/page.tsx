@@ -17,6 +17,8 @@ import {
   createJob,
   setPaidPeriod,
   approveEntry,
+  updateEntry,
+  deleteEntry,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
 import { sanitizeText, formatDate, formatAmount } from "../../lib/utils";
@@ -285,9 +287,11 @@ function TeamDashboardInner() {
 
   useEffect(() => {
     if (!teamId) return;
-    const unsub = subscribeTeam(teamId, setTeam);
+    const unsub = subscribeTeam(teamId, (t) => {
+      setTeam(t);
+    });
     return unsub;
-  }, [teamId]);
+  }, [teamId, user]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -465,6 +469,8 @@ function TeamDashboardInner() {
               onTogglePaid={async (startDate, paid) => {
                 await setPaidPeriod(teamId, startDate, paid);
               }}
+              onUpdateEntry={async (id, data) => { await updateEntry(id, data); }}
+              onDeleteEntry={async (id) => { await deleteEntry(id); }}
             />
           </div>
         )}

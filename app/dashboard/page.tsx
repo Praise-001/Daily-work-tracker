@@ -216,14 +216,16 @@ function DashboardInner() {
     return () => unsubs.forEach((u) => u());
   }, [userProfile]);
 
-  // Subscribe to each team to get team names
+  // Subscribe to each team to get team names + admin emails
   useEffect(() => {
     const teamIds = userProfile?.joinedTeams ?? [];
     if (!teamIds.length) { setTeamMap({}); return; }
     if (!selectedTeamId) setSelectedTeamId(teamIds[0]);
     const unsubs = teamIds.map((tid) =>
       subscribeTeam(tid, (team) => {
-        if (team) setTeamMap((prev) => ({ ...prev, [tid]: team.name }));
+        if (team) {
+          setTeamMap((prev) => ({ ...prev, [tid]: team.name }));
+        }
       })
     );
     return () => unsubs.forEach((u) => u());
