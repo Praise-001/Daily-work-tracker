@@ -710,89 +710,141 @@ function DashboardInner() {
                     </svg>
                   </button>
 
-                  {/* Sessions for current team */}
+                  {/* Sessions for current team — grouped by week */}
                   {sessionsOpen && (
                     <div style={{ marginBottom: 8 }}>
                       {!currentTeamId ? (
                         <div className="empty-state"><p>No team selected.</p></div>
                       ) : (() => {
-                        const tEntries = teamEntries.filter((e) => e.teamId === currentTeamId);
+                        const tEntries = teamEntries.filter((e) => e.teamId === currentTeamId).sort((a, b) => b.date.localeCompare(a.date));
                         const tJobs = teamJobs.filter((j) => j.teamId === currentTeamId);
-                        return (
-                          <div>
-                            {tEntries.length === 0 ? (
-                              <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>No sessions logged yet.</div>
-                            ) : (
-                              <div className="card" style={{ padding: "0 0 4px" }}>
-                                {tEntries.map((e) => {
-                                  const job = tJobs.find((j) => j.id === e.jobId);
-                                  const { day, date } = formatDate(e.date);
-                                  const isEditing = editingEntry?.id === e.id;
-                                  const isConfirmDel = confirmDeleteId === e.id;
-                                  return (
-                                    <div key={e.id} className="ecard" style={{ borderRadius: 0, border: "none", borderBottom: "1px solid var(--border)" }}>
-                                      {isEditing ? (
-                                        <form onSubmit={handleSaveEdit} className="form" style={{ gap: 10 }}>
-                                          {editError && <div className="message message-error" style={{ fontSize: 12 }}>{editError}</div>}
-                                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                                            <div className="field" style={{ margin: 0 }}>
-                                              <label style={{ fontSize: 11 }}>Date</label>
-                                              <input type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} required />
+                        if (tEntries.length === 0) return <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>No sessions logged yet.</div>;
+
+                        function getTeamWeekKey(dateStr: string): string {
+                          const d = new Date(dateStr + "T00:00:00");
+                          const day = d.getDay();
+                          d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+                          const y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+                          return `${y}-${mo}-${dd}`;
+                        }
+                        function teamWeekLabel(mondayStr: string): string {
+                          const mon = new Date(mondayStr + "T00:00:00");
+                          const sun = new Date(mondayStr + "T00:00:00");
+                          sun.setDate(sun.getDate() + 6);
+                          const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                          return `${fmt(mon)} – ${fmt(sun)}`;
+                        }
+
+                        const weekMap: Record<string, typeof tEntries> = {};
+                        tEntries.forEach((e) => {
+                          const key = getTeamWeekKey(e.date);
+                          if (!weekMap[key]) weekMap[key] = [];
+                          weekMap[key].push(e);
+                        });
+                        const weeks = Object.keys(weekMap).sort((a, b) => b.localeCompare(a));
+
+                        return weeks.map((mondayStr) => {
+                          const weekEntries = weekMap[mondayStr];
+                          const totalHours = weekEntries.reduce((s, e) => s + e.hours, 0);
+                          const totalEarned = weekEntries.reduce((s, e) => s + (e.amount ?? 0), 0);
+                          const isOpen = expandedWeek === ("t_" + mondayStr);
+                          const curSymbol = tJobs.find((j) => j.id === weekEntries[0]?.jobId)?.curSymbol ?? "";
+                          return (
+                            <div key={mondayStr} className="card" style={{ marginBottom: 10, overflow: "hidden" }}>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedWeek(isOpen ? null : "t_" + mondayStr)}
+                                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                              >
+                                <div>
+                                  <div style={{ fontWeight: 600, fontSize: 14 }}>{teamWeekLabel(mondayStr)}</div>
+                                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                                    {weekEntries.length} session{weekEntries.length !== 1 ? "s" : ""} · {formatHours(totalHours)}
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                  <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`} style={{ fontSize: 15, fontWeight: 700 }}>
+                                    {totalEarned > 0 ? `${curSymbol}${formatAmount(totalEarned)}` : <span style={{ fontSize: 13, color: "var(--muted)", fontWeight: 400 }}>Pending</span>}
+                                  </span>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                    style={{ color: "var(--muted)", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>
+                                    <polyline points="9 18 15 12 9 6"/>
+                                  </svg>
+                                </div>
+                              </button>
+
+                              {isOpen && (
+                                <div style={{ borderTop: "1px solid var(--border)" }}>
+                                  {weekEntries.map((e) => {
+                                    const job = tJobs.find((j) => j.id === e.jobId);
+                                    const { day, date } = formatDate(e.date);
+                                    const isEditing = editingEntry?.id === e.id;
+                                    const isConfirmDel = confirmDeleteId === e.id;
+                                    return (
+                                      <div key={e.id} className="ecard" style={{ borderRadius: 0, border: "none", borderBottom: "1px solid var(--border)" }}>
+                                        {isEditing ? (
+                                          <form onSubmit={handleSaveEdit} className="form" style={{ gap: 10 }}>
+                                            {editError && <div className="message message-error" style={{ fontSize: 12 }}>{editError}</div>}
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                              <div className="field" style={{ margin: 0 }}>
+                                                <label style={{ fontSize: 11 }}>Date</label>
+                                                <input type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} required />
+                                              </div>
+                                              <div className="field" style={{ margin: 0 }}>
+                                                <label style={{ fontSize: 11 }}>Hours</label>
+                                                <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.001" step="0.001" required />
+                                              </div>
+                                              <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                                                <label style={{ fontSize: 11 }}>Note</label>
+                                                <textarea value={editNote} onChange={(ev) => setEditNote(ev.target.value)} maxLength={300} rows={2} />
+                                              </div>
                                             </div>
-                                            <div className="field" style={{ margin: 0 }}>
-                                              <label style={{ fontSize: 11 }}>Hours</label>
-                                              <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.001" step="0.001" required />
+                                            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                                              <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => setEditingEntry(null)}>Cancel</button>
+                                              <button type="submit" className="btn btn-primary" style={{ flex: 1, fontSize: 13 }} disabled={editSaving}>{editSaving ? "Saving…" : "Save"}</button>
                                             </div>
-                                            <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
-                                              <label style={{ fontSize: 11 }}>Note</label>
-                                              <textarea value={editNote} onChange={(ev) => setEditNote(ev.target.value)} maxLength={300} rows={2} />
+                                          </form>
+                                        ) : (
+                                          <>
+                                            <div className="etop">
+                                              <div className="edate-wrap">
+                                                <span className="eday">{day}</span>
+                                                <span className="edate-txt">{date}</span>
+                                              </div>
+                                              {e.status === "approved" && e.amount != null ? (
+                                                <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`}>
+                                                  {job?.curSymbol ?? ""}{formatAmount(e.amount)}
+                                                </span>
+                                              ) : (
+                                                <span style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Pending</span>
+                                              )}
                                             </div>
-                                          </div>
-                                          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                                            <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 13 }} onClick={() => setEditingEntry(null)}>Cancel</button>
-                                            <button type="submit" className="btn btn-primary" style={{ flex: 1, fontSize: 13 }} disabled={editSaving}>{editSaving ? "Saving…" : "Save"}</button>
-                                          </div>
-                                        </form>
-                                      ) : (
-                                        <>
-                                          <div className="etop">
-                                            <div className="edate-wrap">
-                                              <span className="eday">{day}</span>
-                                              <span className="edate-txt">{date}</span>
-                                            </div>
-                                            {e.status === "approved" && e.amount != null ? (
-                                              <span className={`eearned${earningsHidden ? " earnings-hidden" : ""}`}>
-                                                {job?.curSymbol ?? ""}{formatAmount(e.amount)}
-                                              </span>
-                                            ) : (
-                                              <span style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Pending</span>
+                                            {job && <span className="ejob-tag">{job.name}</span>}
+                                            {e.note && <div className="enote">{e.note}</div>}
+                                            <div className="emeta">{formatHours(e.hours)}h · <span className={`status-badge ${e.status}`}>{e.status}</span></div>
+                                            {e.status === "pending" && (
+                                              isConfirmDel ? (
+                                                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                                  <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                                                  <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12, background: "#e05454", borderColor: "#e05454" }} onClick={() => handleDeleteEntry(e.id)} disabled={deletingId === e.id}>{deletingId === e.id ? "…" : "Delete"}</button>
+                                                </div>
+                                              ) : (
+                                                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                                  <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => startEdit(e)}>Edit</button>
+                                                  <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12, color: "#e05454" }} onClick={() => setConfirmDeleteId(e.id)}>Delete</button>
+                                                </div>
+                                              )
                                             )}
-                                          </div>
-                                          {job && <span className="ejob-tag">{job.name}</span>}
-                                          {e.note && <div className="enote">{e.note}</div>}
-                                          <div className="emeta">{e.hours}h · <span className={`status-badge ${e.status}`}>{e.status}</span></div>
-                                          {e.status === "pending" && (
-                                            isConfirmDel ? (
-                                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                                                <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                                                <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12, background: "#e05454", borderColor: "#e05454" }} onClick={() => handleDeleteEntry(e.id)} disabled={deletingId === e.id}>{deletingId === e.id ? "…" : "Delete"}</button>
-                                              </div>
-                                            ) : (
-                                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                                                <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => startEdit(e)}>Edit</button>
-                                                <button type="button" className="btn btn-ghost" style={{ flex: 1, fontSize: 12, color: "#e05454" }} onClick={() => setConfirmDeleteId(e.id)}>Delete</button>
-                                              </div>
-                                            )
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
+                                          </>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
                       })()}
                     </div>
                   )}
