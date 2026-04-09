@@ -56,6 +56,7 @@ export interface Team {
   createdAt: Timestamp;
   members: Record<string, TeamMember>;
   paidPeriods?: Record<string, boolean>;
+  adminEmail?: string;
 }
 
 export interface CurrencyInfo {

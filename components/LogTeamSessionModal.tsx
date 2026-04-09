@@ -1,14 +1,17 @@
 "use client";
 import { useState } from "react";
+import emailjs from "@emailjs/browser";
 import { createEntry } from "../lib/firestoreService";
 import { sanitizeText } from "../lib/utils";
 import type { Job } from "../lib/types";
 
-export default function LogTeamSessionModal({ job, workerUid, workerName, onClose }: {
+export default function LogTeamSessionModal({ job, workerUid, workerName, onClose, adminEmail, teamName }: {
   job: Job;
   workerUid: string;
   workerName: string;
   onClose: () => void;
+  adminEmail?: string;
+  teamName?: string;
 }) {
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [hours, setHours] = useState("");
@@ -35,6 +38,23 @@ export default function LogTeamSessionModal({ job, workerUid, workerName, onClos
       };
       if (note.trim()) entryData.note = sanitizeText(note, 300);
       await createEntry(entryData);
+
+      // Fire-and-forget email — silently skipped if env vars not set
+      const svc = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+      const tpl = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+      const key = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+      if (adminEmail && svc && tpl && key) {
+        emailjs.send(svc, tpl, {
+          to_email: adminEmail,
+          worker_name: workerName,
+          job_name: job.name,
+          team_name: teamName ?? job.name,
+          hours: hrs.toString(),
+          session_date: date,
+          note: note.trim() || "—",
+        }, key).catch(() => {});
+      }
+
       setSuccess(true);
       setTimeout(onClose, 1400);
     } catch {
@@ -77,7 +97,6 @@ export default function LogTeamSessionModal({ job, workerUid, workerName, onClos
             <div className="field"><label>Note (optional)</label>
               <textarea placeholder="What did you work on?" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
             </div>
-
             <div style={{ padding: "10px 14px", background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: "var(--radius)", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>
               Your rate will be set by the team admin when they approve this session.
             </div>

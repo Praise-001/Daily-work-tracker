@@ -17,6 +17,7 @@ import {
   createJob,
   setPaidPeriod,
   approveEntry,
+  ensureTeamAdminEmail,
   updateEntry,
   deleteEntry,
 } from "../../lib/firestoreService";
@@ -293,6 +294,9 @@ function TeamDashboardInner() {
     if (!teamId) return;
     const unsub = subscribeTeam(teamId, (t) => {
       setTeam(t);
+      if (t && !t.adminEmail && user?.email) {
+        ensureTeamAdminEmail(teamId, user.email).catch(() => {});
+      }
     });
     return unsub;
   }, [teamId, user]);

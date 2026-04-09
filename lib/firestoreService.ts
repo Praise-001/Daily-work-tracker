@@ -175,17 +175,23 @@ export async function rejectEntry(entryId: string): Promise<void> {
 
 export async function createTeam(
   adminUid: string,
-  teamName: string
+  teamName: string,
+  adminEmail?: string
 ): Promise<{ teamId: string; inviteCode: string }> {
   const inviteCode = generateInviteCode(8);
-  const ref = await addDoc(collection(db, "teams"), {
+  const ref = await addDoc(collection(db, "teams"), clean({
     name: teamName,
     adminUid,
     inviteCode,
     members: {},
     createdAt: serverTimestamp(),
-  });
+    adminEmail,
+  }));
   return { teamId: ref.id, inviteCode };
+}
+
+export async function ensureTeamAdminEmail(teamId: string, email: string): Promise<void> {
+  await updateDoc(doc(db, "teams", teamId), { adminEmail: email });
 }
 
 export async function getTeamByInviteCode(code: string): Promise<Team | null> {

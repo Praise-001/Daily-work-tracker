@@ -128,6 +128,7 @@ function DashboardInner() {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [teamMap, setTeamMap] = useState<Record<string, string>>({});
+  const [teamAdminEmails, setTeamAdminEmails] = useState<Record<string, string>>({});
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [confirmLeaveTeamId, setConfirmLeaveTeamId] = useState<string | null>(null);
@@ -225,6 +226,9 @@ function DashboardInner() {
       subscribeTeam(tid, (team) => {
         if (team) {
           setTeamMap((prev) => ({ ...prev, [tid]: team.name }));
+          if (team.adminEmail) {
+            setTeamAdminEmails((prev) => ({ ...prev, [tid]: team.adminEmail! }));
+          }
         }
       })
     );
@@ -819,6 +823,8 @@ function DashboardInner() {
           workerUid={user.uid}
           workerName={name}
           onClose={() => setLogTeamJob(null)}
+          adminEmail={logTeamJob.teamId ? teamAdminEmails[logTeamJob.teamId] : undefined}
+          teamName={logTeamJob.teamId ? teamMap[logTeamJob.teamId] : undefined}
         />
       )}
     </div>

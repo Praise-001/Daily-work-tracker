@@ -47,7 +47,7 @@ export default function TeamOnboarding() {
     try {
       const name = sanitizeText(displayName, 50);
       const tName = sanitizeText(teamName, 80);
-      const { teamId } = await createTeam(user.uid, tName);
+      const { teamId } = await createTeam(user.uid, tName, user.email ?? undefined);
       await createUserProfile(user.uid, { name, type: "team", teamName: tName });
       await updateUserProfile(user.uid, { adminTeamId: teamId });
       // Create first job if provided
