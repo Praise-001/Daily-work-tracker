@@ -12,6 +12,12 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
     "module": "ESNext",
     "moduleResolution": "Node",
     "resolveJsonModule": true,
@@ -35,6 +41,8 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "next-app",
+    "ratelog-project"
   ]
 }

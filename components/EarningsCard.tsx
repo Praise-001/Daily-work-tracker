@@ -115,11 +115,23 @@ export default function EarningsCard({ jobs, entries, hidden, onToggleHidden }: 
   }, [convertTo, rates, groups]);
 
   const convertedSymbol = convertTo ? getCurrencyByCode(convertTo).symbol : "";
+  const totals = useMemo(
+    () =>
+      groups.reduce(
+        (acc, g) => ({
+          hours: acc.hours + g.hours,
+          sessions: acc.sessions + g.sessions,
+          jobs: acc.jobs,
+        }),
+        { hours: 0, sessions: 0, jobs: jobs.length }
+      ),
+    [groups, jobs.length]
+  );
 
   return (
     <div className="earnings-card">
       <div className="earnings-card-top">
-        <span className="earnings-card-label">Overview</span>
+        <span className="earnings-card-label">Personal Ledger</span>
         <button className="eye-btn" onClick={onToggleHidden} title={hidden ? "Show earnings" : "Hide earnings"}>
           <EyeIcon open={!hidden} />
         </button>
@@ -145,6 +157,21 @@ export default function EarningsCard({ jobs, entries, hidden, onToggleHidden }: 
               </div>
             </div>
           ))}
+
+          <div className="ledger-stat-row">
+            <div>
+              <span>Hours</span>
+              <strong className={hidden ? "earnings-hidden" : ""}>{totals.hours.toFixed(1)}</strong>
+            </div>
+            <div>
+              <span>Sessions</span>
+              <strong>{totals.sessions}</strong>
+            </div>
+            <div>
+              <span>Jobs</span>
+              <strong>{totals.jobs}</strong>
+            </div>
+          </div>
 
           {/* Currency conversion section */}
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
