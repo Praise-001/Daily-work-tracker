@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Job, Entry } from "../lib/types";
-import { CURRENCIES, getCurrencyByCode } from "../lib/currencies";
+import { getCurrencyByCode } from "../lib/currencies";
 import { formatAmount } from "../lib/utils";
 
 interface Props {
@@ -9,19 +10,18 @@ interface Props {
   entries: Entry[];
   hidden: boolean;
   onToggleHidden: () => void;
+  onAddJob?: () => void;
+  onLogSession?: (job: Job) => void;
 }
 
-interface CurrencyGroup {
+interface JobEarningsGroup {
+  job: Job;
   code: string;
   symbol: string;
-  label: string;
   total: number;
   hours: number;
   sessions: number;
 }
-
-const FX_CACHE_KEY = "rl-fx-rates";
-const FX_CACHE_TTL = 3600000; // 1 hour
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -32,6 +32,7 @@ function EyeIcon({ open }: { open: boolean }) {
       </svg>
     );
   }
+
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
@@ -41,92 +42,54 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
-export default function EarningsCard({ jobs, entries, hidden, onToggleHidden }: Props) {
-  const [convertTo, setConvertTo] = useState<string>("");
-  const [rates, setRates] = useState<Record<string, number> | null>(null);
-  const [ratesLoading, setRatesLoading] = useState(false);
-  const [ratesError, setRatesError] = useState(false);
+export default function EarningsCard({ jobs, entries, hidden, onToggleHidden, onAddJob, onLogSession }: Props) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
 
-  const groups: CurrencyGroup[] = useMemo(() => {
-    const jobMap = new Map<string, Job>(jobs.map((j) => [j.id, j]));
-    const map = new Map<string, CurrencyGroup>();
+  const groups: JobEarningsGroup[] = useMemo(() => {
+    const map = new Map<string, JobEarningsGroup>();
 
-    for (const e of entries) {
-      if (e.status !== "approved") continue;
-      const job = jobMap.get(e.jobId);
-      if (!job) continue;
-      const cur = job.cur;
-      const amount = e.amount ?? (e.hours * (e.rate ?? 0));
-      if (!map.has(cur)) {
-        const info = getCurrencyByCode(cur);
-        map.set(cur, { code: cur, symbol: info.symbol, label: info.label, total: 0, hours: 0, sessions: 0 });
-      }
-      const g = map.get(cur)!;
-      g.total += amount;
-      g.hours += e.hours;
-      g.sessions += 1;
+    for (const job of jobs) {
+      const info = getCurrencyByCode(job.cur);
+      map.set(job.id, {
+        job,
+        code: job.cur,
+        symbol: job.curSymbol || info.symbol,
+        total: 0,
+        hours: 0,
+        sessions: 0,
+      });
+    }
+
+    for (const entry of entries) {
+      if (entry.status !== "approved") continue;
+      const group = map.get(entry.jobId);
+      if (!group) continue;
+
+      group.total += entry.amount ?? (entry.hours * (entry.rate ?? 0));
+      group.hours += entry.hours;
+      group.sessions += 1;
     }
 
     return Array.from(map.values());
   }, [jobs, entries]);
 
-  // Fetch exchange rates when a target currency is selected
+  const slideCount = groups.length + 1;
+  const activeGroup = activeIndex < groups.length ? groups[activeIndex] : null;
+
   useEffect(() => {
-    if (!convertTo) return;
-    setRatesError(false);
-
-    // Check session storage cache first
-    try {
-      const cached = sessionStorage.getItem(FX_CACHE_KEY);
-      if (cached) {
-        const { ts, data } = JSON.parse(cached) as { ts: number; data: Record<string, number> };
-        if (Date.now() - ts < FX_CACHE_TTL) {
-          setRates(data);
-          return;
-        }
-      }
-    } catch { /* ignore */ }
-
-    setRatesLoading(true);
-    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json")
-      .then((r) => r.json())
-      .then((json) => {
-        const data = json.usd as Record<string, number>;
-        setRates(data);
-        try {
-          sessionStorage.setItem(FX_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
-        } catch { /* ignore */ }
-      })
-      .catch(() => setRatesError(true))
-      .finally(() => setRatesLoading(false));
-  }, [convertTo]);
-
-  const convertedTotal: number | null = useMemo(() => {
-    if (!convertTo || !rates) return null;
-    const targetRate = rates[convertTo.toLowerCase()];
-    if (!targetRate) return null;
-    let total = 0;
-    for (const g of groups) {
-      const fromRate = rates[g.code.toLowerCase()];
-      if (!fromRate) return null;
-      total += g.total * (targetRate / fromRate);
+    if (activeIndex > slideCount - 1) {
+      setActiveIndex(Math.max(slideCount - 1, 0));
     }
-    return total;
-  }, [convertTo, rates, groups]);
+  }, [activeIndex, slideCount]);
 
-  const convertedSymbol = convertTo ? getCurrencyByCode(convertTo).symbol : "";
-  const totals = useMemo(
-    () =>
-      groups.reduce(
-        (acc, g) => ({
-          hours: acc.hours + g.hours,
-          sessions: acc.sessions + g.sessions,
-          jobs: acc.jobs,
-        }),
-        { hours: 0, sessions: 0, jobs: jobs.length }
-      ),
-    [groups, jobs.length]
-  );
+  function handleCarouselScroll() {
+    const el = carouselRef.current;
+    if (!el) return;
+
+    const nextIndex = Math.round(el.scrollLeft / el.clientWidth);
+    setActiveIndex(Math.min(Math.max(nextIndex, 0), slideCount - 1));
+  }
 
   return (
     <div className="earnings-card">
@@ -137,117 +100,81 @@ export default function EarningsCard({ jobs, entries, hidden, onToggleHidden }: 
         </button>
       </div>
 
-      {groups.length === 0 ? (
-        <div className="earnings-no-data">Log sessions to see your earnings here.</div>
-      ) : (
-        <>
-          {groups.map((g) => (
-            <div key={g.code} className="cur-group">
-              <div className="cur-group-top">
-                <div>
-                  <span className="cur-group-symbol">{g.symbol}</span>
-                  <span className={`cur-group-amount${hidden ? " earnings-hidden" : ""}`}>
-                    {formatAmount(g.total)}
-                  </span>
+      <div className="earnings-carousel" ref={carouselRef} onScroll={handleCarouselScroll}>
+        {groups.map((group, index) => {
+          return (
+            <section key={group.job.id} className="earnings-slide" aria-label={`${group.job.name} earnings`}>
+              <div className="job-earnings-slide-content">
+                <div className="job-earnings-kicker">
+                  <span>{group.job.name}</span>
+                  <span>{index + 1} / {slideCount}</span>
                 </div>
-                <span style={{ fontSize: 11, color: "rgba(232,201,122,0.4)" }}>{g.code}</span>
-              </div>
-              <div className={`cur-group-meta${hidden ? " earnings-hidden" : ""}`}>
-                {g.sessions} session{g.sessions !== 1 ? "s" : ""} · {+g.hours.toFixed(3)} hrs
-              </div>
-            </div>
-          ))}
 
-          <div className="ledger-stat-row">
-            <div>
-              <span>Hours</span>
-              <strong className={hidden ? "earnings-hidden" : ""}>{totals.hours.toFixed(1)}</strong>
-            </div>
-            <div>
-              <span>Sessions</span>
-              <strong>{totals.sessions}</strong>
-            </div>
-            <div>
-              <span>Jobs</span>
-              <strong>{totals.jobs}</strong>
-            </div>
-          </div>
-
-          {/* Currency conversion section */}
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 11, color: "rgba(201,168,76,0.5)", whiteSpace: "nowrap" }}>
-                Convert to
-              </span>
-              <select
-                value={convertTo}
-                onChange={(e) => { setConvertTo(e.target.value); setRatesError(false); }}
-                style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(201,168,76,0.15)",
-                  borderRadius: 8,
-                  color: convertTo ? "rgba(232,201,122,0.9)" : "rgba(201,168,76,0.4)",
-                  fontSize: 12,
-                  padding: "5px 8px",
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  outline: "none",
-                }}
-              >
-                <option value="">Pick a currency…</option>
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.symbol} {c.code} — {c.label}
-                  </option>
-                ))}
-              </select>
-              {convertTo && (
-                <button
-                  type="button"
-                  onClick={() => { setConvertTo(""); setRatesError(false); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(201,168,76,0.4)", padding: 2, lineHeight: 1 }}
-                  title="Clear"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            {convertTo && (
-              <div style={{ marginTop: 10 }}>
-                {ratesLoading && (
-                  <div style={{ fontSize: 12, color: "rgba(201,168,76,0.4)" }}>Fetching rates…</div>
-                )}
-                {ratesError && !ratesLoading && (
-                  <div style={{ fontSize: 12, color: "rgba(220,80,80,0.7)" }}>Rate unavailable. Check your connection.</div>
-                )}
-                {!ratesLoading && !ratesError && convertedTotal !== null && (
-                  <div>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.7px", color: "rgba(201,168,76,0.4)", marginBottom: 4 }}>
-                      ≈ total in {convertTo}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                      <span className={`cur-group-amount${hidden ? " earnings-hidden" : ""}`} style={{ fontSize: 26 }}>
-                        {convertedSymbol}{formatAmount(convertedTotal)}
+                <div className="cur-group">
+                  <div className="cur-group-top">
+                    <div className="cur-group-value">
+                      <span className="cur-group-symbol">{group.symbol}</span>
+                      <span className={`cur-group-amount${hidden ? " earnings-hidden" : ""}`}>
+                        {formatAmount(group.total)}
                       </span>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(201,168,76,0.3)", marginTop: 4 }}>
-                      Live rates · approximate only
-                    </div>
+                    <span className="job-earnings-code">{group.code}</span>
                   </div>
-                )}
-                {!ratesLoading && !ratesError && rates && convertedTotal === null && (
-                  <div style={{ fontSize: 12, color: "rgba(201,168,76,0.4)" }}>
-                    Conversion unavailable for one or more of your currencies.
-                  </div>
-                )}
+                </div>
+
+                <div className="earnings-action-row">
+                  <span className={`cur-group-meta${hidden ? " earnings-hidden" : ""}`}>
+                    {group.sessions === 0
+                      ? "No approved sessions yet"
+                      : `${group.sessions} session${group.sessions !== 1 ? "s" : ""} - ${+group.hours.toFixed(3)} hrs`}
+                  </span>
+                  <button
+                    type="button"
+                    className="log-session-pill"
+                    onClick={() => { if (onLogSession) onLogSession(group.job); }}
+                  >
+                    + Log Session
+                  </button>
+                </div>
               </div>
-            )}
+            </section>
+          );
+        })}
+
+        <section className="earnings-slide" aria-label="Add a new job">
+          <button type="button" className="add-job-slide" onClick={onAddJob}>
+            <span className="add-job-slide-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </span>
+            <span className="add-job-slide-title">Add a New Job</span>
+            <span className="add-job-slide-copy">Create another job to track its earnings separately.</span>
+          </button>
+        </section>
+      </div>
+
+      <div className="earnings-dots" aria-hidden="true">
+        {Array.from({ length: slideCount }).map((_, index) => (
+          <span key={index} className={index === activeIndex ? "active" : ""} />
+        ))}
+      </div>
+
+      {activeGroup && (
+        <div className="ledger-stat-row">
+          <div>
+            <span>Hours</span>
+            <strong className={hidden ? "earnings-hidden" : ""}>{activeGroup.hours.toFixed(1)}</strong>
           </div>
-        </>
+          <div>
+            <span>Sessions</span>
+            <strong>{activeGroup.sessions}</strong>
+          </div>
+          <div>
+            <span>Jobs</span>
+            <strong>{jobs.length}</strong>
+          </div>
+        </div>
       )}
     </div>
   );
