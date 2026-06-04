@@ -1,7 +1,7 @@
 "use client";
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import {
-  browserLocalPersistence,
+  browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
   setPersistence,
@@ -44,7 +44,7 @@ if (typeof window !== "undefined") {
   }
   db = getFirestore(app);
   auth = getAuth(app);
-  setPersistence(auth, browserLocalPersistence);
+  setPersistence(auth, browserSessionPersistence);
 }
 
 const provider = new GoogleAuthProvider();
