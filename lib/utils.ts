@@ -42,6 +42,12 @@ export function cleanFirebaseError(message: string): string {
     return "Too many attempts. Please try again later.";
   if (message.includes("network-request-failed"))
     return "Network error. Check your connection and try again.";
+  if (message.includes("unauthorized-domain"))
+    return "This site domain is not allowed in Firebase Auth. Add it under Firebase Authentication > Settings > Authorized domains.";
+  if (message.includes("operation-not-allowed"))
+    return "Google sign-in is not enabled for this Firebase project.";
+  if (message.includes("popup-blocked"))
+    return "The sign-in popup was blocked. Allow popups for this site and try again.";
   if (message.includes("popup-closed-by-user"))
     return "Sign-in popup was closed. Please try again.";
   return "Something went wrong. Please try again.";
