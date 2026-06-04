@@ -19,15 +19,15 @@ import {
   deleteEntry,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
-import { formatDate, formatAmount, formatHours, sanitizeText } from "../../lib/utils";
-import type { Job, Entry } from "../../lib/types";
+import { formatDate, formatAmount, formatHours, formatHoursAsTime, parseTimeToHours, sanitizeText } from "../../lib/utils";
+import type { Job, Entry, Team } from "../../lib/types";
 import CurrencyPicker from "../../components/CurrencyPicker";
 import RateTypeToggle from "../../components/RateTypeToggle";
 import LogTeamSessionModal from "../../components/LogTeamSessionModal";
 import type { RateType } from "../../lib/types";
-import { Home, ScrollText, Users } from "lucide-react";
+import { Briefcase, Home, ScrollText, User } from "lucide-react";
 
-type Tab = "overview" | "sessions" | "myteam";
+type Tab = "overview" | "sessions" | "jobs" | "profile" | "myteam";
 
 function HamburgerIcon() {
   return (
@@ -101,6 +101,77 @@ function AddJobModal({ onClose, ownerUid }: { onClose: () => void; ownerUid: str
   );
 }
 
+function RecentSessions({
+  entries,
+  jobs,
+  hidden,
+  onViewAll,
+}: {
+  entries: Entry[];
+  jobs: Job[];
+  hidden: boolean;
+  onViewAll: () => void;
+}) {
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const recentEntries = entries
+    .slice()
+    .sort((a, b) => {
+      const dateOrder = b.date.localeCompare(a.date);
+      if (dateOrder !== 0) return dateOrder;
+      const aCreated = a.createdAt?.toMillis?.() ?? 0;
+      const bCreated = b.createdAt?.toMillis?.() ?? 0;
+      return bCreated - aCreated;
+    })
+    .slice(0, 4);
+
+  return (
+    <section className="recent-sessions-section">
+      <div className="recent-sessions-head">
+        <h2>Recent sessions</h2>
+        <button type="button" onClick={onViewAll}>
+          View all
+          <span aria-hidden="true">&gt;</span>
+        </button>
+      </div>
+
+      {recentEntries.length === 0 ? (
+        <div className="recent-sessions-empty">
+          No sessions logged yet.
+        </div>
+      ) : (
+        <div className="recent-sessions-list">
+          {recentEntries.map((entry) => {
+            const job = jobsById.get(entry.jobId);
+            const { date } = formatDate(entry.date);
+            const amount = entry.amount ?? entry.hours * (entry.rate ?? 0);
+            const rate = entry.rate ?? job?.defRate;
+            const title = entry.note?.trim() || job?.name || "Untitled session";
+            const subtitle = `${date}${job?.name ? ` - ${job.name}` : ""}`;
+
+            return (
+              <article key={entry.id} className="recent-session-row">
+                <div className="recent-session-copy">
+                  <h3>{title}</h3>
+                  <p>{subtitle}</p>
+                </div>
+                <div className="recent-session-figures">
+                  <strong className={hidden ? "earnings-hidden" : ""}>
+                    {job?.curSymbol ?? ""}{formatAmount(amount)}
+                  </strong>
+                  <span>
+                    {+entry.hours.toFixed(2)}
+                    {rate != null ? `h x ${formatAmount(rate)}` : "h"}
+                  </span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function DashboardInner() {
   const { user, userProfile, refreshProfile } = useAuth();
   const router = useRouter();
@@ -130,6 +201,7 @@ function DashboardInner() {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [teamMap, setTeamMap] = useState<Record<string, string>>({});
+  const [teamDetails, setTeamDetails] = useState<Record<string, Team>>({});
   const [teamAdminEmails, setTeamAdminEmails] = useState<Record<string, string>>({});
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
@@ -139,7 +211,7 @@ function DashboardInner() {
   function startEdit(entry: Entry) {
     setEditingEntry(entry);
     setEditDate(entry.date);
-    setEditHours(entry.hours.toString());
+    setEditHours(formatHoursAsTime(entry.hours));
     setEditRate(entry.rate?.toString() ?? "");
     setEditNote(entry.note ?? "");
     setEditError("");
@@ -148,8 +220,8 @@ function DashboardInner() {
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editingEntry) return;
-    const hours = parseFloat(editHours);
-    if (isNaN(hours) || hours <= 0) { setEditError("Enter valid hours."); return; }
+    const hours = parseTimeToHours(editHours);
+    if (hours == null) { setEditError("Enter time as HH:MM:SS."); return; }
     setEditSaving(true);
     setEditError("");
     try {
@@ -222,12 +294,13 @@ function DashboardInner() {
   // Subscribe to each team to get team names + admin emails
   useEffect(() => {
     const teamIds = userProfile?.joinedTeams ?? [];
-    if (!teamIds.length) { setTeamMap({}); return; }
+    if (!teamIds.length) { setTeamMap({}); setTeamDetails({}); return; }
     setSelectedTeamId((current) => (current && teamIds.includes(current) ? current : teamIds[0]));
     const unsubs = teamIds.map((tid) =>
       subscribeTeam(tid, (team) => {
         if (team) {
           setTeamMap((prev) => ({ ...prev, [tid]: team.name }));
+          setTeamDetails((prev) => ({ ...prev, [tid]: team }));
           if (team.adminEmail) {
             setTeamAdminEmails((prev) => ({ ...prev, [tid]: team.adminEmail! }));
           }
@@ -281,11 +354,7 @@ function DashboardInner() {
           </div>
         </div>
         <nav className="drawer-nav">
-          {([
-            "overview",
-            "sessions",
-            ...(hasTeam ? ["myteam"] : []),
-          ] as Tab[]).map((t) => (
+          {(["overview", "sessions", "jobs", "profile"] as Tab[]).map((t) => (
             <button
               key={t}
               className={`drawer-nav-item${tab === t ? " active" : ""}`}
@@ -293,8 +362,9 @@ function DashboardInner() {
             >
               {t === "overview" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>}
               {t === "sessions" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
-              {t === "myteam" && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
-              {t === "overview" ? "Overview" : t === "sessions" ? "Sessions" : "My Team"}
+              {t === "jobs" && <Briefcase size={18} strokeWidth={1.8} />}
+              {t === "profile" && <User size={18} strokeWidth={1.8} />}
+              {t === "overview" ? "Home" : t === "sessions" ? "Sessions" : t === "jobs" ? "Jobs" : "Profile"}
             </button>
           ))}
         </nav>
@@ -307,16 +377,18 @@ function DashboardInner() {
       </Drawer>
 
       {/* Top bar */}
-      <div className="top-bar">
-        <button className="hamburger-btn" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
-          <HamburgerIcon />
-        </button>
-        <div className="top-bar-greeting">Hey, <span>{name}</span></div>
-        <div style={{ position: "relative" }}>
-          <GearButton onClick={() => setSettingsOpen((v) => !v)} />
-          <SettingsPopover open={settingsOpen} onClose={() => setSettingsOpen(false)} onSignOut={handleSignOut} />
+      {tab !== "profile" && (
+        <div className="top-bar">
+          <button className="hamburger-btn" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
+            <HamburgerIcon />
+          </button>
+          <div className="top-bar-greeting">Hey, <span>{name}</span></div>
+          <div style={{ position: "relative" }}>
+            <GearButton onClick={() => setSettingsOpen((v) => !v)} />
+            <SettingsPopover open={settingsOpen} onClose={() => setSettingsOpen(false)} onSignOut={handleSignOut} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tab bar */}
       <div className="dash-tabs">
@@ -328,12 +400,14 @@ function DashboardInner() {
           <ScrollText size={16} strokeWidth={1.5} />
           <span>Sessions</span>
         </button>
-        {hasTeam && (
-          <button className={`dash-tab${tab === "myteam" ? " active" : ""}`} onClick={() => setTab("myteam")}>
-            <Users size={16} strokeWidth={1.5} />
-            <span>My Team</span>
-          </button>
-        )}
+        <button className={`dash-tab${tab === "jobs" ? " active" : ""}`} onClick={() => setTab("jobs")}>
+          <Briefcase size={16} strokeWidth={1.5} />
+          <span>Jobs</span>
+        </button>
+        <button className={`dash-tab${tab === "profile" ? " active" : ""}`} onClick={() => setTab("profile")}>
+          <User size={16} strokeWidth={1.5} />
+          <span>Profile</span>
+        </button>
       </div>
 
       {/* Tab content */}
@@ -347,6 +421,12 @@ function DashboardInner() {
               onToggleHidden={() => setEarningsHidden((v) => !v)}
               onAddJob={() => setAddJobOpen(true)}
               onLogSession={openJob}
+            />
+            <RecentSessions
+              entries={personalEntries}
+              jobs={jobs}
+              hidden={earningsHidden}
+              onViewAll={() => setTab("sessions")}
             />
           </>
         )}
@@ -445,8 +525,16 @@ function DashboardInner() {
                                       <input type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} required />
                                     </div>
                                     <div className="field">
-                                      <label>Hours</label>
-                                      <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.001" step="0.001" required />
+                                      <label>Time (HH:MM:SS)</label>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="\d+:[0-5]\d:[0-5]\d"
+                                        placeholder="04:30:00"
+                                        value={editHours}
+                                        onChange={(ev) => setEditHours(ev.target.value)}
+                                        required
+                                      />
                                     </div>
                                     <div className="field">
                                       <label>Rate ({jobWithEntries.curSymbol}/{jobWithEntries.rateType})</label>
@@ -496,6 +584,145 @@ function DashboardInner() {
                 </>
               );
             })()}
+          </div>
+        )}
+
+        {tab === "jobs" && (
+          <div className="page-content jobs-page">
+            <div className="jobs-ledger-heading">
+              <span>Index</span>
+              <h2>Jobs</h2>
+            </div>
+
+            <div className="jobs-index">
+              <section className="jobs-index-group">
+                <div className="jobs-index-label">Personal</div>
+                {jobs.length === 0 ? (
+                  <button type="button" className="jobs-empty-row" onClick={() => setAddJobOpen(true)}>
+                    Add your first job
+                  </button>
+                ) : (
+                  jobs.map((job) => {
+                    const jobEntries = personalEntries.filter((entry) => entry.jobId === job.id);
+                    const approvedEntries = jobEntries.filter((entry) => entry.status === "approved");
+                    const totalEarned = approvedEntries.reduce((sum, entry) => sum + (entry.amount ?? entry.hours * (entry.rate ?? 0)), 0);
+                    const rate = job.defRate ?? approvedEntries[0]?.rate;
+
+                    return (
+                      <button key={job.id} className="jobs-index-row" onClick={() => openJob(job)}>
+                        <div className="jobs-index-copy">
+                          <h3>{job.name}</h3>
+                          <p>
+                            Personal
+                            {rate != null ? ` - ${job.curSymbol}${formatAmount(rate)}/${job.rateType === "hour" ? "h" : "d"}` : ""}
+                          </p>
+                        </div>
+                        <div className="jobs-index-figures">
+                          <strong className={earningsHidden ? "earnings-hidden" : ""}>{job.curSymbol}{formatAmount(totalEarned)}</strong>
+                          <span>{jobEntries.length} session{jobEntries.length !== 1 ? "s" : ""}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </section>
+
+              {(userProfile?.joinedTeams ?? []).map((teamId) => {
+                const team = teamDetails[teamId];
+                const scopedJobs = teamJobs.filter((job) => job.teamId === teamId);
+                if (scopedJobs.length === 0) return null;
+
+                return (
+                  <section key={teamId} className="jobs-index-group">
+                    <div className="jobs-index-label">{team?.name ?? teamMap[teamId] ?? "Team"}</div>
+                    {scopedJobs.map((job) => {
+                      const jobEntries = teamEntries.filter((entry) => entry.jobId === job.id);
+                      const approvedEntries = jobEntries.filter((entry) => entry.status === "approved");
+                      const totalEarned = approvedEntries.reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
+                      const rate = user?.uid ? job.memberRates?.[user.uid] ?? job.defRate : job.defRate;
+
+                      return (
+                        <button
+                          key={job.id}
+                          className="jobs-index-row"
+                          onClick={() => setLogTeamJob(job)}
+                        >
+                          <div className="jobs-index-copy">
+                            <h3>{job.name}</h3>
+                            <p>
+                              {team?.name ?? teamMap[teamId] ?? "Team"}
+                              {rate != null ? ` - ${job.curSymbol}${formatAmount(rate)}/${job.rateType === "hour" ? "h" : "d"}` : ""}
+                            </p>
+                          </div>
+                          <div className="jobs-index-figures">
+                            <strong className={earningsHidden ? "earnings-hidden" : ""}>{job.curSymbol}{formatAmount(totalEarned)}</strong>
+                            <span>{jobEntries.length} session{jobEntries.length !== 1 ? "s" : ""}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {tab === "profile" && (
+          <div className="page-content profile-page">
+            <div className="profile-ledger-heading">
+              <span>Account</span>
+              <h2>{name || "RateLog user"}</h2>
+            </div>
+
+            <section className="account-card">
+              <div>
+                <span>Handle</span>
+                <strong>@{(user?.email?.split("@")[0] || name || "ratelog").replace(/\s+/g, "").toLowerCase()}</strong>
+              </div>
+              <div>
+                <span>Member since</span>
+                <strong>
+                  {userProfile?.createdAt?.toDate
+                    ? userProfile.createdAt.toDate().toLocaleDateString("en-US", { month: "long", year: "numeric" })
+                    : "Recently"}
+                </strong>
+              </div>
+            </section>
+
+            <section className="profile-teams-section">
+              <div className="profile-section-label">Teams</div>
+              <div className="profile-team-list">
+                {!hasTeam ? (
+                  <div className="profile-team-empty">No teams joined yet.</div>
+                ) : (
+                  (userProfile?.joinedTeams ?? []).map((teamId) => {
+                    const team = teamDetails[teamId];
+                    const relatedJobs = teamJobs.filter((job) => job.teamId === teamId);
+                    const currency = relatedJobs[0]?.cur ?? "USD";
+                    const memberCount = team ? Object.keys(team.members ?? {}).length : 1;
+
+                    return (
+                      <button
+                        type="button"
+                        key={teamId}
+                        className="profile-team-row"
+                        onClick={() => {
+                          setSelectedTeamId(teamId);
+                          setTab("myteam");
+                        }}
+                      >
+                        <div>
+                          <h3>{team?.name ?? teamMap[teamId] ?? "Team workspace"}</h3>
+                          <p>Member - {memberCount} member{memberCount !== 1 ? "s" : ""} - {currency}</p>
+                        </div>
+                        <span>Active</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </section>
           </div>
         )}
         {tab === "myteam" && (
@@ -786,8 +1013,16 @@ function DashboardInner() {
                                                 <input type="date" value={editDate} onChange={(ev) => setEditDate(ev.target.value)} required />
                                               </div>
                                               <div className="field" style={{ margin: 0 }}>
-                                                <label style={{ fontSize: 11 }}>Hours</label>
-                                                <input type="number" value={editHours} onChange={(ev) => setEditHours(ev.target.value)} min="0.001" step="0.001" required />
+                                                <label style={{ fontSize: 11 }}>Time (HH:MM:SS)</label>
+                                                <input
+                                                  type="text"
+                                                  inputMode="numeric"
+                                                  pattern="\d+:[0-5]\d:[0-5]\d"
+                                                  placeholder="04:30:00"
+                                                  value={editHours}
+                                                  onChange={(ev) => setEditHours(ev.target.value)}
+                                                  required
+                                                />
                                               </div>
                                               <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
                                                 <label style={{ fontSize: 11 }}>Note</label>

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import emailjs from "@emailjs/browser";
 import { createEntry } from "../lib/firestoreService";
-import { sanitizeText } from "../lib/utils";
+import { parseTimeToHours, sanitizeText } from "../lib/utils";
 import type { Job } from "../lib/types";
 
 export default function LogTeamSessionModal({ job, workerUid, workerName, onClose, adminEmail, teamName }: {
@@ -22,8 +22,8 @@ export default function LogTeamSessionModal({ job, workerUid, workerName, onClos
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const hrs = parseFloat(hours);
-    if (isNaN(hrs) || hrs <= 0) { setError("Enter valid hours."); return; }
+    const hrs = parseTimeToHours(hours);
+    if (hrs == null) { setError("Enter time as HH:MM:SS."); return; }
     setError("");
     setSaving(true);
     try {
@@ -91,8 +91,17 @@ export default function LogTeamSessionModal({ job, workerUid, workerName, onClos
             <div className="field"><label>Date</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
-            <div className="field"><label>Hours Worked</label>
-              <input type="number" placeholder="e.g. 4.5" value={hours} onChange={(e) => setHours(e.target.value)} min="0.001" step="0.001" required autoFocus />
+            <div className="field"><label>Time Worked (HH:MM:SS)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="\d+:[0-5]\d:[0-5]\d"
+                placeholder="04:30:00"
+                value={hours}
+                onChange={(e) => setHours(e.target.value)}
+                required
+                autoFocus
+              />
             </div>
             <div className="field"><label>Note (optional)</label>
               <textarea placeholder="What did you work on?" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />

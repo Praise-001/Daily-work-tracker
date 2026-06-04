@@ -72,6 +72,28 @@ export function formatHours(decimalHours: number): string {
 }
 
 /** Format a number as a locale currency string (no currency code prefix — caller adds symbol). */
+/** Format decimal hours as HH:MM:SS for time-entry fields. */
+export function formatHoursAsTime(decimalHours: number): string {
+  if (!Number.isFinite(decimalHours) || decimalHours <= 0) return "";
+  const totalSeconds = Math.round(decimalHours * 3600);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Parse HH:MM:SS into decimal hours. Returns null for invalid durations. */
+export function parseTimeToHours(value: string): number | null {
+  const match = value.trim().match(/^(\d+):([0-5]\d):([0-5]\d)$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return null;
+  return totalSeconds / 3600;
+}
+
 export function formatAmount(amount: number): string {
   return amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

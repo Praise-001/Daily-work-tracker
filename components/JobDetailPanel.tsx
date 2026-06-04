@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { Job, Entry } from "../lib/types";
 import { updateJob, createEntry, deleteJob, subscribeJobEntries, updateEntry, deleteEntry } from "../lib/firestoreService";
 import { getCurrencyByCode } from "../lib/currencies";
-import { sanitizeText, formatDate, formatAmount } from "../lib/utils";
+import { sanitizeText, formatDate, formatAmount, formatHoursAsTime, parseTimeToHours } from "../lib/utils";
 import CurrencyPicker from "./CurrencyPicker";
 import RateTypeToggle from "./RateTypeToggle";
 import type { RateType } from "../lib/types";
@@ -80,7 +80,7 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
   function startEditEntry(entry: Entry) {
     setEditingEntry(entry);
     setEditEntryDate(entry.date);
-    setEditEntryHours(entry.hours.toString());
+    setEditEntryHours(formatHoursAsTime(entry.hours));
     setEditEntryRate(entry.rate?.toString() ?? "");
     setEditEntryNote(entry.note ?? "");
     setEntryError("");
@@ -89,8 +89,8 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
   async function handleSaveEntry(e: React.FormEvent) {
     e.preventDefault();
     if (!editingEntry || !job) return;
-    const hours = parseFloat(editEntryHours);
-    if (isNaN(hours) || hours <= 0) { setEntryError("Enter valid hours."); return; }
+    const hours = parseTimeToHours(editEntryHours);
+    if (hours == null) { setEntryError("Enter time as HH:MM:SS."); return; }
     const rate = editEntryRate ? parseFloat(editEntryRate) : (editingEntry.rate ?? 0);
     setSavingEntry(true);
     setEntryError("");
@@ -128,8 +128,8 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
   async function handleLogSession(e: React.FormEvent) {
     e.preventDefault();
     if (!job) return;
-    const hours = parseFloat(logHours);
-    if (isNaN(hours) || hours <= 0) { setError("Enter valid hours."); return; }
+    const hours = parseTimeToHours(logHours);
+    if (hours == null) { setError("Enter time as HH:MM:SS."); return; }
     setError("");
     setSaving(true);
     try {
@@ -255,14 +255,14 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
               <input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} required />
             </div>
             <div className="field">
-              <label>Hours Worked</label>
+              <label>Time Worked (HH:MM:SS)</label>
               <input
-                type="number"
-                placeholder="e.g. 4.5"
+                type="text"
+                inputMode="numeric"
+                pattern="\d+:[0-5]\d:[0-5]\d"
+                placeholder="04:30:00"
                 value={logHours}
                 onChange={(e) => setLogHours(e.target.value)}
-                min="0.1"
-                step="0.1"
                 required
                 autoFocus
               />
@@ -317,8 +317,16 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
                             <input type="date" value={editEntryDate} onChange={(e) => setEditEntryDate(e.target.value)} required />
                           </div>
                           <div className="field" style={{ margin: 0 }}>
-                            <label style={{ fontSize: 11 }}>Hours</label>
-                            <input type="number" value={editEntryHours} onChange={(e) => setEditEntryHours(e.target.value)} min="0.001" step="0.001" required />
+                            <label style={{ fontSize: 11 }}>Time (HH:MM:SS)</label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="\d+:[0-5]\d:[0-5]\d"
+                              placeholder="04:30:00"
+                              value={editEntryHours}
+                              onChange={(e) => setEditEntryHours(e.target.value)}
+                              required
+                            />
                           </div>
                           <div className="field" style={{ margin: 0 }}>
                             <label style={{ fontSize: 11 }}>Rate ({currency.symbol}/{job.rateType})</label>
