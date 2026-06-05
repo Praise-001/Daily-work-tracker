@@ -2,7 +2,7 @@
 import { useState } from "react";
 import emailjs from "@emailjs/browser";
 import { createEntry } from "../lib/firestoreService";
-import { parseTimeToHours, sanitizeText } from "../lib/utils";
+import { formatTimeInput, parseTimeToHours, sanitizeText } from "../lib/utils";
 import type { Job } from "../lib/types";
 
 export default function LogTeamSessionModal({ job, workerUid, workerName, onClose, adminEmail, teamName }: {
@@ -98,7 +98,8 @@ export default function LogTeamSessionModal({ job, workerUid, workerName, onClos
                 pattern="\d+:[0-5]\d:[0-5]\d"
                 placeholder="04:30:00"
                 value={hours}
-                onChange={(e) => setHours(e.target.value)}
+                onChange={(e) => setHours(formatTimeInput(e.target.value))}
+                maxLength={8}
                 required
                 autoFocus
               />

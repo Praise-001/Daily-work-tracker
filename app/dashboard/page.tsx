@@ -19,7 +19,7 @@ import {
   deleteEntry,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
-import { formatDate, formatAmount, formatHours, formatHoursAsTime, parseTimeToHours, sanitizeText } from "../../lib/utils";
+import { formatDate, formatAmount, formatHours, formatHoursAsTime, formatTimeInput, parseTimeToHours, sanitizeText } from "../../lib/utils";
 import type { Job, Entry, Team } from "../../lib/types";
 import CurrencyPicker from "../../components/CurrencyPicker";
 import RateTypeToggle from "../../components/RateTypeToggle";
@@ -532,7 +532,8 @@ function DashboardInner() {
                                         pattern="\d+:[0-5]\d:[0-5]\d"
                                         placeholder="04:30:00"
                                         value={editHours}
-                                        onChange={(ev) => setEditHours(ev.target.value)}
+                                        onChange={(ev) => setEditHours(formatTimeInput(ev.target.value))}
+                                        maxLength={8}
                                         required
                                       />
                                     </div>
@@ -1020,7 +1021,8 @@ function DashboardInner() {
                                                   pattern="\d+:[0-5]\d:[0-5]\d"
                                                   placeholder="04:30:00"
                                                   value={editHours}
-                                                  onChange={(ev) => setEditHours(ev.target.value)}
+                                                  onChange={(ev) => setEditHours(formatTimeInput(ev.target.value))}
+                                                  maxLength={8}
                                                   required
                                                 />
                                               </div>

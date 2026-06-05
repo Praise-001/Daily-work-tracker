@@ -82,6 +82,17 @@ export function formatHoursAsTime(decimalHours: number): string {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Auto-insert HH:MM:SS separators while a user types digits. */
+export function formatTimeInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+  const parts = [
+    digits.slice(0, 2),
+    digits.slice(2, 4),
+    digits.slice(4, 6),
+  ].filter(Boolean);
+  return parts.join(":");
+}
+
 /** Parse HH:MM:SS into decimal hours. Returns null for invalid durations. */
 export function parseTimeToHours(value: string): number | null {
   const match = value.trim().match(/^(\d+):([0-5]\d):([0-5]\d)$/);

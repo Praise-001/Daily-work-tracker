@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { Job, Entry } from "../lib/types";
 import { updateJob, createEntry, deleteJob, subscribeJobEntries, updateEntry, deleteEntry } from "../lib/firestoreService";
 import { getCurrencyByCode } from "../lib/currencies";
-import { sanitizeText, formatDate, formatAmount, formatHoursAsTime, parseTimeToHours } from "../lib/utils";
+import { sanitizeText, formatDate, formatAmount, formatHoursAsTime, formatTimeInput, parseTimeToHours } from "../lib/utils";
 import CurrencyPicker from "./CurrencyPicker";
 import RateTypeToggle from "./RateTypeToggle";
 import type { RateType } from "../lib/types";
@@ -262,7 +262,8 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
                 pattern="\d+:[0-5]\d:[0-5]\d"
                 placeholder="04:30:00"
                 value={logHours}
-                onChange={(e) => setLogHours(e.target.value)}
+                onChange={(e) => setLogHours(formatTimeInput(e.target.value))}
+                maxLength={8}
                 required
                 autoFocus
               />
@@ -324,7 +325,8 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
                               pattern="\d+:[0-5]\d:[0-5]\d"
                               placeholder="04:30:00"
                               value={editEntryHours}
-                              onChange={(e) => setEditEntryHours(e.target.value)}
+                              onChange={(e) => setEditEntryHours(formatTimeInput(e.target.value))}
+                              maxLength={8}
                               required
                             />
                           </div>
