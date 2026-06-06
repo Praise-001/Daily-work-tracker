@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../components/AuthGuard";
 import Drawer from "../../components/Drawer";
@@ -197,6 +197,7 @@ function DashboardInner() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [selectedSessionJobId, setSelectedSessionJobId] = useState<string | null>(null);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -207,6 +208,7 @@ function DashboardInner() {
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [confirmLeaveTeamId, setConfirmLeaveTeamId] = useState<string | null>(null);
   const [leavingTeam, setLeavingTeam] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function startEdit(entry: Entry) {
     setEditingEntry(entry);
@@ -262,6 +264,37 @@ function DashboardInner() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  function clearLongPressTimer() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  function toggleSelectedSession(entryId: string) {
+    setSelectedSessionIds((current) =>
+      current.includes(entryId)
+        ? current.filter((id) => id !== entryId)
+        : [...current, entryId]
+    );
+  }
+
+  function beginSessionLongPress(entryId: string, disabled: boolean) {
+    if (disabled || selectedSessionIds.length > 0) return;
+    clearLongPressTimer();
+    longPressTimer.current = setTimeout(() => {
+      setEditingEntry(null);
+      setConfirmDeleteId(null);
+      setSelectedSessionIds([entryId]);
+      longPressTimer.current = null;
+    }, 450);
+  }
+
+  function handleSessionClick(entryId: string) {
+    if (selectedSessionIds.length === 0) return;
+    toggleSelectedSession(entryId);
   }
 
   const hasTeam = (userProfile?.joinedTeams?.length ?? 0) > 0;
@@ -339,8 +372,27 @@ function DashboardInner() {
     }
   }
 
-  const personalEntries = entries.filter((e) => !e.teamId);
-  const teamEntries = entries.filter((e) => !!e.teamId);
+  const personalEntries = useMemo(() => entries.filter((e) => !e.teamId), [entries]);
+  const teamEntries = useMemo(() => entries.filter((e) => !!e.teamId), [entries]);
+  const selectedSessions = useMemo(
+    () => personalEntries.filter((entry) => selectedSessionIds.includes(entry.id)),
+    [personalEntries, selectedSessionIds]
+  );
+  const selectedSessionTotal = selectedSessions.reduce(
+    (total, entry) => total + (entry.amount ?? entry.hours * (entry.rate ?? 0)),
+    0
+  );
+  const selectedSessionHours = selectedSessions.reduce((total, entry) => total + entry.hours, 0);
+  const selectedSessionCurrency =
+    jobs.find((job) => job.id === selectedSessions[0]?.jobId)?.curSymbol ?? "";
+
+  useEffect(() => {
+    setSelectedSessionIds((current) =>
+      current.filter((id) => personalEntries.some((entry) => entry.id === id))
+    );
+  }, [personalEntries]);
+
+  useEffect(() => () => clearLongPressTimer(), []);
 
   return (
     <div className="dash-shell">
@@ -467,6 +519,7 @@ function DashboardInner() {
                               setSelectedSessionJobId(job.id);
                               setEditingEntry(null);
                               setConfirmDeleteId(null);
+                              setSelectedSessionIds([]);
                             }}
                           >
                             <span>{job.name}</span>
@@ -514,8 +567,39 @@ function DashboardInner() {
                           const earned = e.amount ?? (e.hours * (e.rate ?? 0));
                           const isEditing = editingEntry?.id === e.id;
                           const isConfirmDel = confirmDeleteId === e.id;
+                          const isSelected = selectedSessionIds.includes(e.id);
+                          const selectionMode = selectedSessionIds.length > 0;
                           return (
-                            <div key={e.id} className="session-entry-row">
+                            <div
+                              key={e.id}
+                              className={`session-entry-row${isSelected ? " selected" : ""}${selectionMode ? " selectable" : ""}`}
+                              role="button"
+                              tabIndex={isEditing ? -1 : 0}
+                              aria-pressed={isSelected}
+                              onPointerDown={(ev) => {
+                                const target = ev.target as HTMLElement;
+                                if (target.closest("button,input,textarea,select")) return;
+                                beginSessionLongPress(e.id, isEditing || isConfirmDel);
+                              }}
+                              onPointerUp={clearLongPressTimer}
+                              onPointerCancel={clearLongPressTimer}
+                              onPointerLeave={clearLongPressTimer}
+                              onContextMenu={(ev) => {
+                                ev.preventDefault();
+                                if (!isEditing && !isConfirmDel) {
+                                  setEditingEntry(null);
+                                  setConfirmDeleteId(null);
+                                  toggleSelectedSession(e.id);
+                                }
+                              }}
+                              onClick={() => handleSessionClick(e.id)}
+                              onKeyDown={(ev) => {
+                                if (selectionMode && (ev.key === "Enter" || ev.key === " ")) {
+                                  ev.preventDefault();
+                                  toggleSelectedSession(e.id);
+                                }
+                              }}
+                            >
                               {isEditing ? (
                                 <form onSubmit={handleSaveEdit} className="form session-edit-form">
                                   {editError && <div className="message message-error" style={{ fontSize: 12 }}>{editError}</div>}
@@ -555,6 +639,7 @@ function DashboardInner() {
                                 <>
                                   <div className="session-entry-main">
                                     <div className="session-entry-copy">
+                                      {isSelected && <span className="session-selected-pill">Selected</span>}
                                       <span>{day}, {date}</span>
                                       <p>{e.note || "Untitled session"}</p>
                                     </div>
@@ -563,7 +648,7 @@ function DashboardInner() {
                                       <span>{+e.hours.toFixed(3)}h</span>
                                     </div>
                                   </div>
-                                  {isConfirmDel ? (
+                                  {selectionMode ? null : isConfirmDel ? (
                                     <div className="session-entry-actions">
                                       <button type="button" className="btn btn-ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
                                       <button type="button" className="btn btn-primary danger-btn" onClick={() => handleDeleteEntry(e.id)} disabled={deletingId === e.id}>{deletingId === e.id ? "..." : "Delete"}</button>
@@ -582,6 +667,20 @@ function DashboardInner() {
                       </div>
                     )}
                   </section>
+                  {selectedSessions.length > 0 && (
+                    <div className="session-selection-summary" role="status" aria-live="polite">
+                      <div>
+                        <span>{selectedSessions.length} selected</span>
+                        <strong className={earningsHidden ? "earnings-hidden" : ""}>
+                          {selectedSessionCurrency}{formatAmount(selectedSessionTotal)}
+                        </strong>
+                        <em>{+selectedSessionHours.toFixed(3)}h total</em>
+                      </div>
+                      <button type="button" onClick={() => setSelectedSessionIds([])}>
+                        Clear
+                      </button>
+                    </div>
+                  )}
                 </>
               );
             })()}
