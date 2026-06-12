@@ -159,8 +159,8 @@ function RecentSessions({
                     {job?.curSymbol ?? ""}{formatAmount(amount)}
                   </strong>
                   <span>
-                    {+entry.hours.toFixed(2)}
-                    {rate != null ? `h x ${formatAmount(rate)}` : "h"}
+                    {formatHoursAsTime(entry.hours)}
+                    {rate != null ? ` x ${formatAmount(rate)}` : ""}
                   </span>
                 </div>
               </article>
@@ -209,6 +209,7 @@ function DashboardInner() {
   const [confirmLeaveTeamId, setConfirmLeaveTeamId] = useState<string | null>(null);
   const [leavingTeam, setLeavingTeam] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressHandledSession = useRef<string | null>(null);
 
   function startEdit(entry: Entry) {
     setEditingEntry(entry);
@@ -288,13 +289,27 @@ function DashboardInner() {
       setEditingEntry(null);
       setConfirmDeleteId(null);
       setSelectedSessionIds([entryId]);
+      longPressHandledSession.current = entryId;
       longPressTimer.current = null;
     }, 450);
   }
 
   function handleSessionClick(entryId: string) {
+    if (longPressHandledSession.current === entryId) {
+      longPressHandledSession.current = null;
+      return;
+    }
     if (selectedSessionIds.length === 0) return;
     toggleSelectedSession(entryId);
+  }
+
+  function handleSessionPointerEnd(entryId: string) {
+    clearLongPressTimer();
+    window.setTimeout(() => {
+      if (longPressHandledSession.current === entryId) {
+        longPressHandledSession.current = null;
+      }
+    }, 700);
   }
 
   const hasTeam = (userProfile?.joinedTeams?.length ?? 0) > 0;
@@ -547,7 +562,7 @@ function DashboardInner() {
                       </div>
                       <div>
                         <span>Hours</span>
-                        <strong className={earningsHidden ? "earnings-hidden" : ""}>{+totalHours.toFixed(3)}</strong>
+                        <strong className={earningsHidden ? "earnings-hidden" : ""}>{formatHoursAsTime(totalHours)}</strong>
                       </div>
                       <div>
                         <span>Sessions</span>
@@ -558,6 +573,20 @@ function DashboardInner() {
 
                   <section className="session-entries">
                     <h3>Entries</h3>
+                    {selectedSessions.length > 0 && (
+                      <div className="session-selection-summary" role="status" aria-live="polite">
+                        <div>
+                          <span>{selectedSessions.length} selected</span>
+                          <strong className={earningsHidden ? "earnings-hidden" : ""}>
+                            {selectedSessionCurrency}{formatAmount(selectedSessionTotal)}
+                          </strong>
+                          <em>{formatHoursAsTime(selectedSessionHours)} total</em>
+                        </div>
+                        <button type="button" onClick={() => setSelectedSessionIds([])}>
+                          Clear
+                        </button>
+                      </div>
+                    )}
                     {jobEntries.length === 0 ? (
                       <div className="empty-state sessions-empty"><p>No sessions logged for this job yet.</p></div>
                     ) : (
@@ -581,11 +610,12 @@ function DashboardInner() {
                                 if (target.closest("button,input,textarea,select")) return;
                                 beginSessionLongPress(e.id, isEditing || isConfirmDel);
                               }}
-                              onPointerUp={clearLongPressTimer}
-                              onPointerCancel={clearLongPressTimer}
+                              onPointerUp={() => handleSessionPointerEnd(e.id)}
+                              onPointerCancel={() => handleSessionPointerEnd(e.id)}
                               onPointerLeave={clearLongPressTimer}
                               onContextMenu={(ev) => {
                                 ev.preventDefault();
+                                if (longPressHandledSession.current === e.id) return;
                                 if (!isEditing && !isConfirmDel) {
                                   setEditingEntry(null);
                                   setConfirmDeleteId(null);
@@ -645,7 +675,7 @@ function DashboardInner() {
                                     </div>
                                     <div className="session-entry-amount">
                                       <strong className={earningsHidden ? "earnings-hidden" : ""}>{jobWithEntries.curSymbol}{formatAmount(earned)}</strong>
-                                      <span>{+e.hours.toFixed(3)}h</span>
+                                      <span>{formatHoursAsTime(e.hours)}</span>
                                     </div>
                                   </div>
                                   {selectionMode ? null : isConfirmDel ? (
@@ -667,20 +697,6 @@ function DashboardInner() {
                       </div>
                     )}
                   </section>
-                  {selectedSessions.length > 0 && (
-                    <div className="session-selection-summary" role="status" aria-live="polite">
-                      <div>
-                        <span>{selectedSessions.length} selected</span>
-                        <strong className={earningsHidden ? "earnings-hidden" : ""}>
-                          {selectedSessionCurrency}{formatAmount(selectedSessionTotal)}
-                        </strong>
-                        <em>{+selectedSessionHours.toFixed(3)}h total</em>
-                      </div>
-                      <button type="button" onClick={() => setSelectedSessionIds([])}>
-                        Clear
-                      </button>
-                    </div>
-                  )}
                 </>
               );
             })()}
@@ -962,9 +978,9 @@ function DashboardInner() {
                     )}
                     {totalHours > 0 && (
                       <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", fontSize: 13, color: "var(--muted)" }}>
-                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{+totalHours.toFixed(3)}h</span> total logged
+                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{formatHoursAsTime(totalHours)}</span> total logged
                         {approvedHours > 0 && approvedHours !== totalHours && (
-                          <> · <span style={{ fontWeight: 600, color: "var(--text)" }}>{+approvedHours.toFixed(3)}h</span> approved</>
+                          <> · <span style={{ fontWeight: 600, color: "var(--text)" }}>{formatHoursAsTime(approvedHours)}</span> approved</>
                         )}
                       </div>
                     )}
@@ -1152,7 +1168,7 @@ function DashboardInner() {
                                             </div>
                                             {job && <span className="ejob-tag">{job.name}</span>}
                                             {e.note && <div className="enote">{e.note}</div>}
-                                            <div className="emeta">{formatHours(e.hours)}h · <span className={`status-badge ${e.status}`}>{e.status}</span></div>
+                                            <div className="emeta">{formatHoursAsTime(e.hours)} · <span className={`status-badge ${e.status}`}>{e.status}</span></div>
                                             {e.status === "pending" && (
                                               isConfirmDel ? (
                                                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>

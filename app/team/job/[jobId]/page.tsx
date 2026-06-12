@@ -13,7 +13,7 @@ import {
   setMemberRate,
 } from "../../../../lib/firestoreService";
 import { getCurrencyByCode } from "../../../../lib/currencies";
-import { formatDate, formatAmount, sanitizeText } from "../../../../lib/utils";
+import { formatDate, formatAmount, formatHoursAsTime, sanitizeText } from "../../../../lib/utils";
 import type { Job, Entry, Team } from "../../../../lib/types";
 
 function PencilIcon() {
@@ -229,7 +229,7 @@ function TeamJobDetailInner() {
             {/* Stats row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 600 }}>{+totalHours.toFixed(3)}h</div>
+                <div style={{ fontSize: 20, fontWeight: 600 }}>{formatHoursAsTime(totalHours)}</div>
                 <div style={{ fontSize: 11, color: "var(--muted)" }}>Total hours</div>
               </div>
               <div style={{ textAlign: "center" }}>
@@ -316,7 +316,7 @@ function TeamJobDetailInner() {
                             <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 2 }}>{member.name}</div>
                             <div style={{ fontSize: 12, color: "var(--muted)" }}>
                               {stats.totalHours > 0
-                                ? `${+stats.totalHours.toFixed(3)}h logged${stats.pendingHours > 0 ? ` · ${+stats.pendingHours.toFixed(3)}h pending` : ""}`
+                                ? `${formatHoursAsTime(stats.totalHours)} logged${stats.pendingHours > 0 ? ` · ${formatHoursAsTime(stats.pendingHours)} pending` : ""}`
                                 : "No sessions yet"}
                             </div>
                           </div>
@@ -428,7 +428,7 @@ function TeamJobDetailInner() {
                     </div>
                     {e.note && <div className="enote">{e.note}</div>}
                     <div className="emeta">
-                      {e.hours}h{e.rate ? ` · ${currency?.symbol}${e.rate}/${job.rateType}` : ""}
+                      {formatHoursAsTime(e.hours)}{e.rate ? ` · ${currency?.symbol}${e.rate}/${job.rateType}` : ""}
                     </div>
                   </div>
                 );
@@ -448,3 +448,4 @@ export default function TeamJobDetailPage() {
     </AuthGuard>
   );
 }
+

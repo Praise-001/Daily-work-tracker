@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -34,9 +34,9 @@
   --surface2: #171717;
   --surface3: #242424;
   --border2: rgba(201,168,76,0.32);
-  --text: #f7f4ec;
-  --muted: #b7ad98;
-  --muted2: #6f6759;
+  --text: #fffaf0;
+  --muted: #d7ccb6;
+  --muted2: #a89d89;
   --gold: #c9a84c;
   --gold-light: #e8c97a;
   --gold-dim: rgba(201,168,76,0.16);
@@ -49,10 +49,10 @@
   --radius-lg: 8px;
   --radius-xl: 10px;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --serif: 'Cormorant Garamond', Georgia, serif;
+  --serif: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --nav-bg: rgba(8,8,8,0.96);
-  --tab-muted: rgba(247,244,236,0.58);
+  --tab-muted: rgba(247,244,236,0.72);
   --hover-surface: #111111;
   --shadow: 0 18px 60px rgba(0,0,0,0.5);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -115,9 +115,55 @@ html, body {
 body {
   min-height: 100vh;
   line-height: 1.58;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font);
+  font-weight: 800;
+  font-style: normal;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--font);
+  font-weight: 600;
+}
+
+strong,
+b {
+  font-weight: 800;
+}
+
+.muted,
+.emeta,
+.job-tile-meta,
+.team-entry-left p,
+.approval-meta,
+.member-meta,
+.hstat-lbl,
+.hero-sub,
+.session-entry-amount span,
+.session-summary-stats span,
+.ledger-stat-row span,
+.cur-group-meta {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.emeta,
+.job-tile-meta,
+.session-entry-amount span,
+.session-summary-stats span,
+.ledger-stat-row span,
+.cur-group-meta {
+  font-size: 11px;
 }
 
 ::selection { background: oklch(0.738 0.13 85 / 0.3); }
@@ -777,8 +823,8 @@ body {
   --border: rgba(23,20,16,0.14);
   --border2: rgba(23,20,16,0.2);
   --text: #171410;
-  --muted: #5f5647;
-  --muted2: #8c8271;
+  --muted: #4f4637;
+  --muted2: #766c5b;
   --gold: #946b18;
   --gold-light: #745411;
   --gold-dim: rgba(154,114,32,0.13);
@@ -789,7 +835,7 @@ body {
   --red: #c0392b;
   --red-dim: rgba(192,57,43,0.12);
   --nav-bg: rgba(255,253,250,0.96);
-  --tab-muted: rgba(23,20,16,0.6);
+  --tab-muted: rgba(23,20,16,0.68);
   --hover-surface: #eee7da;
   --shadow: 0 8px 32px rgba(0,0,0,0.12);
 }
@@ -2897,7 +2943,7 @@ body {
   padding: 13px 0;
   border-bottom: 1px solid rgba(201,168,76,0.14);
   border-radius: var(--radius);
-  transition: background 0.18s, box-shadow 0.18s, padding 0.18s;
+  transition: background 0.18s, box-shadow 0.18s;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -2911,7 +2957,6 @@ body {
 }
 
 .session-entry-row.selected {
-  padding: 13px 12px;
   background: var(--gold-dim);
   box-shadow: inset 0 0 0 1px var(--border2);
 }
@@ -3012,12 +3057,8 @@ body {
 }
 
 .session-selection-summary {
-  position: fixed;
-  left: 50%;
-  bottom: calc(62px + env(safe-area-inset-bottom));
-  z-index: 240;
-  width: min(calc(100% - 32px), 428px);
-  transform: translateX(-50%);
+  width: 100%;
+  margin: 0 0 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3026,8 +3067,7 @@ body {
   border: 1px solid var(--border2);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
+  box-shadow: none;
 }
 
 .session-selection-summary div {
@@ -3161,3 +3201,90 @@ body {
 }
 
 .job-card-summary-remove:hover { color: var(--red); background: var(--red-dim); }
+
+/* Stronger readable typography across themes */
+.top-bar-greeting,
+.auth-content h1,
+.auth-form-title,
+.wizard-step h2,
+.section-title,
+.section-header h3,
+.recent-sessions-head h2,
+.ledger-page-heading h2,
+.session-summary-top h3,
+.job-panel-title,
+.type-card-label,
+.add-job-slide-title {
+  font-family: var(--font);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.hero-amt,
+.hero-cur,
+.sc-amount,
+.job-tile-amount,
+.cur-group-amount,
+.cur-group-symbol,
+.session-summary-stats strong,
+.ledger-stat-row strong {
+  font-family: var(--font);
+  font-style: normal;
+  font-weight: 900;
+}
+
+.hstat-lbl,
+.hero-sub,
+.cur-group-meta,
+.ledger-stat-row span,
+.session-summary-stats span,
+.session-entry-amount span,
+.emeta,
+.job-tile-meta,
+.team-entry-left p,
+.team-entry-amount.pending,
+.member-meta,
+.approval-meta,
+.job-card-summary-meta,
+.back-link {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.hstat-val,
+.ledger-stat-row strong,
+.session-summary-stats strong,
+.team-entry-left h4,
+.member-name,
+.approval-worker,
+.job-card-summary-name {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.session-entry-copy p,
+.enote,
+.job-panel-sub,
+.empty-state p,
+.auth-content p,
+.wizard-step p {
+  color: var(--text);
+  font-weight: 600;
+}
+
+[data-theme="light"] .hstat-lbl,
+[data-theme="light"] .hero-sub,
+[data-theme="light"] .cur-group-meta,
+[data-theme="light"] .ledger-stat-row span,
+[data-theme="light"] .session-summary-stats span,
+[data-theme="light"] .session-entry-amount span,
+[data-theme="light"] .emeta,
+[data-theme="light"] .job-tile-meta,
+[data-theme="light"] .team-entry-left p,
+[data-theme="light"] .team-entry-amount.pending,
+[data-theme="light"] .member-meta,
+[data-theme="light"] .approval-meta,
+[data-theme="light"] .job-card-summary-meta,
+[data-theme="light"] .back-link {
+  color: var(--muted);
+}

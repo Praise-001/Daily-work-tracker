@@ -1,5 +1,6 @@
 "use client";
 import { ReactNode } from "react";
+import { formatHoursAsTime } from "../lib/utils";
 
 type Props = {
   title: string;
@@ -21,7 +22,7 @@ export function JobCard({ title, currency, earned, hours, sessions, cta }: Props
           <span className="muted">Earned</span>
         </div>
         <div>
-          <strong>{+hours.toFixed(3)}h</strong>
+          <strong>{formatHoursAsTime(hours)}</strong>
           <span className="muted">Hours</span>
         </div>
         <div>

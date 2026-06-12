@@ -1,4 +1,6 @@
 "use client";
+
+import { formatHoursAsTime } from "../lib/utils";
 type Entry = {
   id: string;
   jobName: string;
@@ -20,7 +22,7 @@ export function SessionList({ entries }: { entries: Entry[] }) {
           <div>
             <div style={{ fontWeight: 600 }}>{e.jobName}</div>
             <div className="muted" style={{ fontSize: 12 }}>
-              {e.date} • {e.hours}h @ {e.rate}/hr {e.note ? "• " + e.note : ""}
+              {e.date} • {formatHoursAsTime(e.hours)} @ {e.rate}/hr {e.note ? "• " + e.note : ""}
             </div>
           </div>
           <span className="badge">{e.status || "pending"}</span>
@@ -29,3 +31,4 @@ export function SessionList({ entries }: { entries: Entry[] }) {
     </ul>
   );
 }
+

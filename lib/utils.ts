@@ -62,19 +62,15 @@ export function formatDate(dateStr: string): { day: string; date: string } {
   };
 }
 
-/** Convert decimal hours to HH:MM display string (e.g. 19.467 → "19:28"). */
+/** Convert decimal hours to HH:MM:SS display string. */
 export function formatHours(decimalHours: number): string {
-  if (decimalHours <= 0) return "0:00";
-  const totalMinutes = Math.round(decimalHours * 60);
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return `${h}:${m.toString().padStart(2, "0")}`;
+  if (!Number.isFinite(decimalHours) || decimalHours <= 0) return "00:00:00";
+  return formatHoursAsTime(decimalHours);
 }
 
-/** Format a number as a locale currency string (no currency code prefix — caller adds symbol). */
 /** Format decimal hours as HH:MM:SS for time-entry fields. */
 export function formatHoursAsTime(decimalHours: number): string {
-  if (!Number.isFinite(decimalHours) || decimalHours <= 0) return "";
+  if (!Number.isFinite(decimalHours) || decimalHours <= 0) return "00:00:00";
   const totalSeconds = Math.round(decimalHours * 3600);
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -105,6 +101,7 @@ export function parseTimeToHours(value: string): number | null {
   return totalSeconds / 3600;
 }
 
+/** Format a number as a locale currency string. */
 export function formatAmount(amount: number): string {
   return amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

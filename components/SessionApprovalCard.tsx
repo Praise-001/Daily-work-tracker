@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Entry, Job } from "../lib/types";
 import { approveEntry, rejectEntry } from "../lib/firestoreService";
-import { formatDate } from "../lib/utils";
+import { formatDate, formatHoursAsTime } from "../lib/utils";
 
 interface Props {
   entry: Entry;
@@ -57,7 +57,7 @@ export default function SessionApprovalCard({ entry, job }: Props) {
         <div>
           <div className="approval-worker">{entry.workerName ?? "Team Member"}</div>
           <div className="approval-meta">
-            {day} {date} · {entry.hours}h · {job?.name ?? "Unknown job"}
+            {day} {date} · {formatHoursAsTime(entry.hours)} · {job?.name ?? "Unknown job"}
           </div>
         </div>
         <span className="status-badge pending">Pending</span>
@@ -111,3 +111,4 @@ export default function SessionApprovalCard({ entry, job }: Props) {
     </div>
   );
 }
+

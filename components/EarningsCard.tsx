@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Job, Entry } from "../lib/types";
 import { getCurrencyByCode } from "../lib/currencies";
-import { formatAmount } from "../lib/utils";
+import { formatAmount, formatHoursAsTime } from "../lib/utils";
 
 interface Props {
   jobs: Job[];
@@ -126,7 +126,7 @@ export default function EarningsCard({ jobs, entries, hidden, onToggleHidden, on
                   <span className={`cur-group-meta${hidden ? " earnings-hidden" : ""}`}>
                     {group.sessions === 0
                       ? "No approved sessions yet"
-                      : `${group.sessions} session${group.sessions !== 1 ? "s" : ""} - ${+group.hours.toFixed(3)} hrs`}
+                      : `${group.sessions} session${group.sessions !== 1 ? "s" : ""} - ${formatHoursAsTime(group.hours)}`}
                   </span>
                   <button
                     type="button"
@@ -164,7 +164,7 @@ export default function EarningsCard({ jobs, entries, hidden, onToggleHidden, on
         <div className="ledger-stat-row">
           <div>
             <span>Hours</span>
-            <strong className={hidden ? "earnings-hidden" : ""}>{activeGroup.hours.toFixed(1)}</strong>
+            <strong className={hidden ? "earnings-hidden" : ""}>{formatHoursAsTime(activeGroup.hours)}</strong>
           </div>
           <div>
             <span>Sessions</span>

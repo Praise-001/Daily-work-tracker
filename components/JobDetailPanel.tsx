@@ -353,7 +353,7 @@ export default function JobDetailPanel({ job, open, onClose, onDelete, workerUid
                           </div>
                           <span className="eearned">{currency.symbol}{formatAmount(entry.amount ?? 0)}</span>
                         </div>
-                        <div className="emeta">{entry.hours}h · {currency.symbol}{entry.rate ?? 0}/{job.rateType}</div>
+                        <div className="emeta">{formatHoursAsTime(entry.hours)} · {currency.symbol}{entry.rate ?? 0}/{job.rateType}</div>
                         {entry.note && <div className="enote">{entry.note}</div>}
                         {isConfirmDel ? (
                           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>

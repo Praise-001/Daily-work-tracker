@@ -518,7 +518,7 @@ export default function TeamWeeklyTimesheet({ allEntries, members, jobs, adminUi
                                     <div style={{ fontSize: 13, lineHeight: 1.5, minWidth: 0 }}>
                                       <span style={{ fontWeight: 500 }}>{workerName}</span>
                                       {jobName && <span style={{ color: "var(--muted)", fontSize: 12 }}> · {jobName}</span>}
-                                      <span style={{ color: "var(--muted)", fontSize: 12 }}> · {formatHours(entry.hours)}h</span>
+                                      <span style={{ color: "var(--muted)", fontSize: 12 }}> · {formatHours(entry.hours)}</span>
                                       {entry.rate != null && entry.rate > 0 && (
                                         <span style={{ color: "var(--muted)", fontSize: 12 }}> · {entry.rate}</span>
                                       )}

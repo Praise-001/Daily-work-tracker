@@ -22,7 +22,7 @@ import {
   deleteEntry,
 } from "../../lib/firestoreService";
 import { getCurrencyByCode } from "../../lib/currencies";
-import { sanitizeText, formatDate, formatAmount } from "../../lib/utils";
+import { sanitizeText, formatDate, formatAmount, formatHoursAsTime } from "../../lib/utils";
 import type { Team, Job, Entry, RateType, TeamMember } from "../../lib/types";
 
 type Tab = "overview" | "pending" | "members" | "timesheet";
@@ -190,7 +190,7 @@ function MemberDetailPanel({ uid, member, allEntries, jobs, onClose }: {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
           <div className="card" style={{ padding: "14px 16px" }}>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>{+totalHours.toFixed(3)}h</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{formatHoursAsTime(totalHours)}</div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>Hours worked</div>
           </div>
           <div className="card" style={{ padding: "14px 16px" }}>
@@ -203,7 +203,7 @@ function MemberDetailPanel({ uid, member, allEntries, jobs, onClose }: {
           </div>
           {pendingHours > 0 && (
             <div className="card" style={{ padding: "14px 16px", gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{+pendingHours.toFixed(3)}h</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{formatHoursAsTime(pendingHours)}</div>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>Pending approval</div>
             </div>
           )}
@@ -232,7 +232,7 @@ function MemberDetailPanel({ uid, member, allEntries, jobs, onClose }: {
                 </div>
                 {job && <span className="ejob-tag">{job.name}</span>}
                 {e.note && <div className="enote">{e.note}</div>}
-                <div className="emeta">{e.hours}h{e.rate ? ` · ${job?.curSymbol}${e.rate}/${job?.rateType}` : ""}</div>
+                <div className="emeta">{formatHoursAsTime(e.hours)}{e.rate ? ` · ${job?.curSymbol}${e.rate}/${job?.rateType}` : ""}</div>
               </div>
             );
           })
@@ -380,7 +380,7 @@ function TeamDashboardInner() {
                             <div>
                               <div style={{ fontWeight: 500, fontSize: 14 }}>{job?.name ?? "—"}</div>
                               <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                                {entry.date} · {+entry.hours.toFixed(3)}h
+                                {entry.date} · {formatHoursAsTime(entry.hours)}
                                 {entry.note && <> · {entry.note.slice(0, 60)}{entry.note.length > 60 ? "…" : ""}</>}
                               </div>
                             </div>
@@ -429,7 +429,7 @@ function TeamDashboardInner() {
                       <div className="job-tile-name">{job.name}</div>
                       <div className="job-tile-amount">{job.curSymbol}{formatAmount(totalEarned)}</div>
                       <div className="job-tile-meta">
-                        {+totalHours.toFixed(3)}h logged
+                        {formatHoursAsTime(totalHours)} logged
                         {pendingCount > 0 ? ` · ${pendingCount} pending` : ""}
                       </div>
                       <button
@@ -617,3 +617,4 @@ export default function TeamPage() {
     </AuthGuard>
   );
 }
+
